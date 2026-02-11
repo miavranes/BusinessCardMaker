@@ -1,0 +1,14 @@
+.editor-container {
+  min-height: 100vh;
+  background-color: #f3f4f6;
+  display: flex;
+}
+
+.canvas-area {
+  flex: 1;
+  margin-left: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
