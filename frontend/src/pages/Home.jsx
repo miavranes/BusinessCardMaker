@@ -1,41 +1,52 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
+import front from '../assets/front.png';
+import back from '../assets/back.png';
+import { templates } from '../templates';
 import "../css/Home.css";
-
-
-
-const templates = [
-  { id: 1, category: "modern", name: "Onyx", bg: "#0f0f0f", accent: "#c8a96e", text: "#ffffff" },
-  { id: 2, category: "modern", name: "Neon", bg: "#0a0a1a", accent: "#00f5ff", text: "#ffffff" },
-  { id: 3, category: "elegant", name: "Ivory", bg: "#f5f0e8", accent: "#8b6914", text: "#1a1a1a" },
-  { id: 4, category: "elegant", name: "Noir", bg: "#1c1c1c", accent: "#d4af7a", text: "#f0ead6" },
-  { id: 5, category: "minimal", name: "Blanc", bg: "#ffffff", accent: "#111111", text: "#111111" },
-  { id: 6, category: "minimal", name: "Sage", bg: "#e8ede6", accent: "#3d5a40", text: "#1a2b1c" },
-  { id: 7, category: "creative", name: "Aurora", bg: "#1a0533", accent: "#ff6b9d", text: "#ffffff" },
-  { id: 8, category: "creative", name: "Rust", bg: "#2d1b0e", accent: "#e8672a", text: "#f5dcc8" },
-];
 
 const categories = ["All", "Modern", "Elegant", "Minimal", "Creative"];
 
+function BusinessCardPreview({ template, isBack = false, containerWidth }) {
+  const LayoutComponent = template.layoutComponent;
+  return <LayoutComponent template={template} isBack={isBack} containerWidth={containerWidth} />;
+}
+
 function TemplateCard({ template, onSelect }) {
   const [flipped, setFlipped] = useState(false);
+  const cardRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(400);
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (cardRef.current) {
+        setContainerWidth(cardRef.current.offsetWidth);
+      }
+    };
+
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   return (
     <div
+      ref={cardRef}
       className="template-card"
       onMouseEnter={() => setFlipped(true)}
       onMouseLeave={() => setFlipped(false)}
+      onClick={() => onSelect(template)}
     >
       <div className={`card-flip ${flipped ? "flipped" : ""}`}>
-        <div className="card-front" style={{ background: template.bg }}>
-          <div className="card-line" style={{ background: template.accent }} />
-          <p className="card-name" style={{ color: template.text }}>Mia Vranes</p>
-          <p className="card-job" style={{ color: template.accent }}>Designer</p>
-          <div className="card-blob" style={{ background: template.accent }} />
+
+        <div className="card-front" style={{ background: template.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <BusinessCardPreview template={template} containerWidth={containerWidth} />
         </div>
-        <div className="card-back" style={{ background: template.accent }}>
-          <p className="card-label">{template.name}</p>
+
+        <div className="card-back" style={{ background: template.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <BusinessCardPreview template={template} isBack={true} containerWidth={containerWidth} />
         </div>
+
       </div>
       <p className="template-name">{template.name}</p>
     </div>
@@ -61,11 +72,23 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
             <span>Business cards created in minutes</span>
           </div>
 
-          <h1 className="title">
-            Design<br></br> 
-            Personalize<br></br>
-            Export
-          </h1>
+          <div className="title-with-image">
+            <h1 className="title">
+              Design<br />
+              <span className="highlight">Personalize</span><br />
+              Export
+            </h1>
+            <div className="rotating-card">
+              <div className="rotating-card-inner">
+                <div className="rotating-card-front">
+                  <img src={front} alt="Front card" />
+                </div>
+                <div className="rotating-card-back">
+                  <img src={back} alt="Back card" />
+                </div>
+              </div>
+            </div>
+          </div>
 
           <p className="subtitle">
             Professional business cards made easy.
@@ -76,7 +99,7 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
             <button className="btn-primary" onClick={() => navigate('/editor')}>
               Start from scratch
             </button>
-            <button className="btn-secondary" onClick={() => 
+            <button className="btn-secondary" onClick={() =>
               document.getElementById("templates")?.scrollIntoView({ behavior: "smooth" })
             }>
               View templates
@@ -127,10 +150,30 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
             ))}
           </div>
         </div>
-        <div className="templates-grid">
-          {filtered.map(t => (
-            <TemplateCard key={t.id} template={t} onSelect={onLoadTemplate || (() => {})} />
-          ))}
+        <div style={{ position: 'relative' }}>
+          <button 
+            className="slider-nav prev" 
+            onClick={() => {
+              const container = document.querySelector('.templates-grid');
+              container.scrollBy({ left: -420, behavior: 'smooth' });
+            }}
+          >
+            ‹
+          </button>
+          <div className="templates-grid">
+            {filtered.map(t => (
+              <TemplateCard key={t.id} template={t} onSelect={(template) => navigate (`/editor/${template.id}`)} />
+            ))}
+          </div>
+          <button 
+            className="slider-nav next" 
+            onClick={() => {
+              const container = document.querySelector('.templates-grid');
+              container.scrollBy({ left: 420, behavior: 'smooth' });
+            }}
+          >
+            ›
+          </button>
         </div>
       </section>
 
@@ -148,7 +191,6 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
           <div className="feature">
             <h3>High-Resolution Export</h3>
             <p>PNG, JPG, or PDF — ready for print with professional quality from the first click.</p>
-
           </div>
           <div className="feature">
             <h3>Animations</h3>

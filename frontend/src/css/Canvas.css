@@ -10,13 +10,15 @@
   background-color: white;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   border-radius: 8px;
-  width: 1000px;
-  height: 600px;
+  width: 500px;
+  height: 300px;
 }
 
 .canvas-element {
   display: block;
   border-radius: 8px;
+  width: 500px;
+  height: 300px;
 }
 
 .canvas-element.draggable {

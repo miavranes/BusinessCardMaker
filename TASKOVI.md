@@ -3,20 +3,20 @@
 ## 1. Početna Stranica (Home Page)
 
 - [x] Kreirati Home.jsx komponentu
-- [ ] Dodati hero sekciju sa opisom aplikacije
+- [x] Dodati hero sekciju sa opisom aplikacije
 - [ ] Napraviti galeriju primera vizit karti
-- [ ] Kreirati prikaz šablona
-- [ ] Organizovati šablone po kategorijama (modern, elegantan, minimalistički, kreativni)
-- [ ] Dodati routing između Home i Editor stranica
-- [ ] Stilizovati Home page (Home.css)
+- [x] Kreirati prikaz šablona
+- [x] Organizovati šablone po kategorijama (modern, elegantan, minimalistički, kreativni)
+- [x] Dodati routing između Home i Editor stranica
+- [x] Stilizovati Home page (Home.css)
 
 ## 2. Šabloni (Templates)
 
-- [ ] Kreirati templates.js fajl sa definicijama
+- [x] Kreirati templates.js fajl sa definicijama
 - [ ] Napraviti minimum 4 šablona po kategoriji
-- [ ] Implementirati filtriranje po kategorijama
-- [ ] Dodati funkcionalnost učitavanja šablona u Editor
-- [ ] Stilizovati galeriju šablona
+- [x] Implementirati filtriranje po kategorijama
+- [x] Dodati funkcionalnost učitavanja šablona u Editor
+- [x] Stilizovati galeriju šablona
 
 ## 3. Napredne Opcije za Tekst
 
