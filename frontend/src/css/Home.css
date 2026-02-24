@@ -29,7 +29,6 @@ html, body {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* ─── HERO ─────────────────────────────────────────────── */
 .hero {
   min-height: 100vh;
   display: grid;
@@ -99,10 +98,10 @@ html, body {
 
 .rotating-card {
   perspective: 1000px;
-  width: 340px;
+  width: 400px;
   height: 340px;
   flex-shrink: 0;
-  margin-left: 0 !important;
+  margin-left: 600px;
 }
 
 .rotating-card-inner {
@@ -153,7 +152,6 @@ html, body {
   flex-wrap: wrap;
 }
 
-/* ─── BUTTONS ───────────────────────────────────────────── */
 .btn-primary {
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: #fff;
@@ -227,7 +225,6 @@ html, body {
   right: 0;
 }
 
-/* ─── SECTIONS ──────────────────────────────────────────── */
 section {
   padding: 80px 60px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -251,7 +248,6 @@ section {
   margin-bottom: 60px;
 }
 
-/* ─── STEPS ─────────────────────────────────────────────── */
 .steps-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -293,7 +289,6 @@ section {
   line-height: 1.6;
 }
 
-/* ─── TEMPLATES ─────────────────────────────────────────── */
 .templates {
   position: relative;
 }
@@ -394,7 +389,6 @@ section {
   font-weight: 500;
 }
 
-/* ─── FEATURES ──────────────────────────────────────────── */
 .features-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -429,7 +423,6 @@ section {
   line-height: 1.6;
 }
 
-/* ─── CTA ───────────────────────────────────────────────── */
 .cta {
   text-align: center;
   padding: 100px 60px;
@@ -442,11 +435,6 @@ section {
   letter-spacing: -0.02em;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   RESPONSIVE BREAKPOINTS
-═══════════════════════════════════════════════════════════ */
-
-/* ─── Tablet landscape: 1024px ──────────────────────────── */
 @media (max-width: 1024px) {
   .hero {
     grid-template-columns: 1fr;
@@ -493,7 +481,6 @@ section {
   }
 }
 
-/* ─── Tablet portrait: 768px ────────────────────────────── */
 @media (max-width: 768px) {
   .hero {
     padding: 48px 24px;
@@ -570,7 +557,6 @@ section {
   }
 }
 
-/* ─── Mobile: 480px ─────────────────────────────────────── */
 @media (max-width: 480px) {
   .hero {
     padding: 36px 20px;

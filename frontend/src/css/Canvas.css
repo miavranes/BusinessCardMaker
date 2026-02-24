@@ -7,18 +7,22 @@
 }
 
 .canvas-wrapper {
+  width: 580px;
+  height: 330px;
+  position: relative;
+  overflow: hidden;
   background-color: white;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   border-radius: 8px;
-  width: 500px;
-  height: 300px;
 }
 
 .canvas-element {
   display: block;
   border-radius: 8px;
-  width: 500px;
-  height: 300px;
+  width: 580px;
+  height: 330px;
+  position: relative;
+  z-index: 1;
 }
 
 .canvas-element.draggable {

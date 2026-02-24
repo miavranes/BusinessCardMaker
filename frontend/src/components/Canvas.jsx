@@ -21,8 +21,8 @@ const Canvas = forwardRef(({
   const [offset, setOffset]     = useState({ x: 0, y: 0 });
   const [containerWidth, setContainerWidth] = useState(400);
 
-  const CANVAS_W = 500;
-  const CANVAS_H = 300;
+  const CANVAS_W = 580;
+  const CANVAS_H = 330;
 
   useEffect(() => {
     const update = () => {
