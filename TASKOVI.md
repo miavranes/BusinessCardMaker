@@ -25,7 +25,6 @@
 - [ ] Dodati bullet liste
 - [ ] Implementirati text shadow efekat
 - [ ] Dodati text stroke/outline
-- [ ] Dodati X i Y input polja za precizno pozicioniranje
 - [ ] Implementirati zakrivljeni tekst (curve text)
 
 ## 4. Slike i Logotipi

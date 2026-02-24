@@ -7,9 +7,8 @@ function App() {
    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/editor" element={<Editor />} />
-        <Route path="/editor/:templateId" element={<Editor />} /> 
-      </Routes>
+       <Route path="/editor/:templateId" element={<Editor />} />
+        </Routes>
     </BrowserRouter>
   
   )

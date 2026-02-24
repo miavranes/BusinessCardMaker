@@ -328,38 +328,31 @@ section {
 .templates {
   position: relative;
 }
-
 .templates-grid {
-  display: flex;
-  gap: 24px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  padding-bottom: 20px;
-  scrollbar-width: none;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 40px 30px; 
+  width: 100%;
+  overflow: visible;
 }
 
-.templates-grid::-webkit-scrollbar {
-  display: none;
+.template-card {
+  width: 100%;
+  max-width: 450px;
+  margin: 0 auto; 
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+@media (max-width: 480px) {
+  .templates-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
 }
 
 .slider-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(99, 102, 241, 0.8);
-  border: none;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-  z-index: 10;
+  display: none !important;
 }
 
 .slider-nav:hover {

@@ -2,143 +2,144 @@ import { useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { templates } from '../templates';
 import Canvas from '../components/Canvas';
-import Navbar from '../components/Navbar';
+import FloatingEditor from '../components/FloatingEditor';
 import '../css/Editor.css';
 
-function Editor() {
+export default function Editor() {
   const { templateId } = useParams();
-
-  const selectedTemplate = templateId
-    ? templates.find(t => t.id === Number(templateId))
-    : null;
+  const selectedTemplate = templateId ? templates.find(t => t.id === Number(templateId)) : null;
 
   const canvasFrontRef = useRef(null);
   const canvasBackRef = useRef(null);
 
+  const [userData, setUserData] = useState(() => ({ ...selectedTemplate?.defaultData }));
+  const updateUserData = (field, value) => setUserData(prev => ({ ...prev, [field]: value }));
+
+  const [sectionsFront, setSectionsFront] = useState(() => (selectedTemplate?.sectionsFront ?? []).map(s => ({ ...s })));
+  const [sectionsBack, setSectionsBack] = useState(() => (selectedTemplate?.sectionsBack ?? []).map(s => ({ ...s })));
+
+  const updateSection = (sectionId, updates) => {
+  const patch = list => list.map(s => s.id === sectionId ? { ...s, ...updates } : s);
+
+    const isFront = sectionsFront.some(s => s.id === sectionId);
+
+    if (isFront) {
+      setSectionsFront(prev => patch(prev));
+    } else {
+      setSectionsBack(prev => patch(prev));
+    }
+
+    setSelectedSection(prev => prev?.id === sectionId ? { ...prev, ...updates } : prev);
+  };
+
+  const [selectedSection, setSelectedSection] = useState(null);
+  const [sectionAnchorRect, setSectionAnchorRect] = useState(null);
+
+  const handleSelectSection = (section, domRect) => {
+    setSelectedSection(section ?? null);
+    setSectionAnchorRect(domRect ?? null);
+    if (section) setSelectedElement(null);
+  };
+
   const [elements, setElements] = useState([]);
   const [selectedElement, setSelectedElement] = useState(null);
-  const [selectedSection, setSelectedSection] = useState(null);
-  const [backgroundColor, setBackgroundColor] = useState(selectedTemplate?.bg || '#ffffff');
-  const [backgroundColorBack, setBackgroundColorBack] = useState(selectedTemplate?.bgBack || '#ffffff');
-  const [userData, setUserData] = useState(selectedTemplate?.defaultData || {});
 
-  // Sections state — kopija iz templatea, može se mijenjati (pozicija, stil)
-  const [sectionsBack, setSectionsBack] = useState(selectedTemplate?.sectionsBack || []);
-  const [sectionsFront, setSectionsFront] = useState(selectedTemplate?.sectionsFront || []);
+  const updateElement = (id, updates) => setElements(prev => prev.map(el => el.id === id ? { ...el, ...updates } : el));
 
-  const updateUserData = (field, value) => {
-    setUserData(prev => ({ ...prev, [field]: value }));
+  const [bgFront, setBgFront] = useState(selectedTemplate?.bg || '#ffffff');
+  const [bgBack, setBgBack] = useState(selectedTemplate?.bgBack || '#ffffff');
+
+
+  const handleLogoUpload = (file) => {
+    const url = URL.createObjectURL(file);
+    updateUserData('logoUrl', url);
   };
 
-  // Ažurira sekciju po ID-u (pozicija, boja, font...)
-  const updateSection = (sectionId, updates) => {
-    const updateList = (list) => list.map(s => s.id === sectionId ? { ...s, ...updates } : s);
-    setSectionsBack(prev => updateList(prev));
-    setSectionsFront(prev => updateList(prev));
+  const handleTextChange = (field, newValue) => {
+  setUserData(prev => {
+    if (selectedSection) {
+      const isBack = String(selectedSection.id).startsWith('back-');
+      const prefix = isBack ? 'back_' : 'front_';
+      
+      const key = prefix + field;
+      console.log(`Menjam polje: ${key} u vrednost: ${newValue}`); // Ovo će ti reći da li radi
 
-    // Ažuriraj i selectedSection ako je ista
-    if (selectedSection?.id === sectionId) {
-      setSelectedSection(prev => ({ ...prev, ...updates }));
+      return {
+        ...prev,
+        [key]: newValue
+      };
     }
-  };
+    return { ...prev, [field]: newValue };
+  });
+};
 
-  // Template sa ažuriranim sekcijama
-  const activeTemplate = selectedTemplate ? {
-    ...selectedTemplate,
-    sectionsBack,
-    sectionsFront,
-  } : null;
-
-  const addText = () => {
-    const newElement = {
-      id: Date.now(), type: 'text', content: 'New text',
-      x: 50, y: 50, fontSize: 24, fontFamily: 'Arial',
-      fontWeight: 'normal', fontStyle: 'normal', color: '#000000', align: 'left'
-    };
-    setElements([...elements, newElement]);
-    setSelectedElement(newElement.id);
-  };
-
-  const addShape = (shapeType) => {
-    const newElement = {
-      id: Date.now(), type: 'shape', shapeType,
-      x: 100, y: 100, width: 100, height: 100,
-      fill: '#3b82f6', stroke: '#000000', strokeWidth: 0, borderRadius: 0
-    };
-    setElements([...elements, newElement]);
-    setSelectedElement(newElement.id);
-  };
-
-  const updateElement = (id, updates) => {
-    setElements(elements.map(el => el.id === id ? { ...el, ...updates } : el));
-  };
-
-  const deleteElement = () => {
-    if (selectedElement) {
-      setElements(elements.filter(el => el.id !== selectedElement));
-      setSelectedElement(null);
-    }
-  };
-
-  const selectedElementData = elements.find(el => el.id === selectedElement);
+   const activeTemplate = selectedTemplate ? { ...selectedTemplate, sectionsFront, sectionsBack } : null;
 
   return (
-    <div className="editor-container">
-      <Navbar
-        onAddText={addText}
-        onAddShape={addShape}
-        backgroundColor={backgroundColor}
-        onBackgroundChange={setBackgroundColor}
-        selectedElement={selectedElementData}
-        onUpdateElement={updateElement}
-        onDeleteElement={deleteElement}
-        selectedSection={selectedSection}
-        onUpdateSection={updateSection}
-        userData={userData}
-        onUpdateUserData={updateUserData}
-      />
-
+    <div 
+      className="editor-container" 
+      onClick={() => { 
+        setSelectedSection(null); 
+        setSectionAnchorRect(null); 
+      }}
+    >
       <div className="canvas-area">
         <div className="canvas-side">
-          <p className="canvas-label">Front</p>
+          <p className="canvas-label">Front Side</p>
           <Canvas
             ref={canvasFrontRef}
             elements={elements}
             selectedElement={selectedElement}
-            setSelectedElement={setSelectedElement}
+            setSelectedElement={id => { setSelectedElement(id); setSelectedSection(null); }}
             onUpdateElement={updateElement}
-            backgroundColor={backgroundColor}
+            backgroundColor={bgFront}
             template={activeTemplate}
             isBack={false}
             showPreview={false}
             selectedSection={selectedSection}
-            onSelectSection={setSelectedSection}
+            onSelectSection={handleSelectSection}
             onUpdateSection={updateSection}
             userData={userData}
+            sections={sectionsFront}
           />
         </div>
 
         <div className="canvas-side">
-          <p className="canvas-label">Back</p>
+          <p className="canvas-label">Back Side</p>
           <Canvas
             ref={canvasBackRef}
             elements={elements}
             selectedElement={selectedElement}
-            setSelectedElement={setSelectedElement}
+            setSelectedElement={id => { setSelectedElement(id); setSelectedSection(null); }}
             onUpdateElement={updateElement}
-            backgroundColor={backgroundColorBack}
+            backgroundColor={bgBack}
             template={activeTemplate}
             isBack={true}
             showPreview={false}
             selectedSection={selectedSection}
-            onSelectSection={setSelectedSection}
+            onSelectSection={handleSelectSection}
             onUpdateSection={updateSection}
             userData={userData}
+            sections={sectionsBack}
           />
         </div>
       </div>
+
+     {selectedSection && (
+        <FloatingEditor
+    selectedSection={selectedSection}
+    anchorRect={sectionAnchorRect}
+    template={activeTemplate}
+    onUpdateSection={updateSection}
+    
+    // KLJUČNA IZMJENA: Koristi handleTextChange umjesto updateUserData
+    onUpdateUserData={handleTextChange} 
+    
+    userData={userData}
+    onClose={() => { setSelectedSection(null); setSectionAnchorRect(null); }}
+    onLogoUpload={handleLogoUpload}
+  />
+      )}
     </div>
   );
 }
-
-export default Editor;

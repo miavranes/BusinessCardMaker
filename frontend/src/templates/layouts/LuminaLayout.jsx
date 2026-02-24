@@ -1,10 +1,11 @@
-import logo from '../../assets/logo.png';
+import React from 'react';
+import logoIcon from '../../assets/logo.png';
 
 export const luminaTemplate = {
   id: 8,
   category: "modern",
   name: "Lumina",
-  bg: "#c4856a",
+  bg: "#c4856a", 
   bgBack: "#c4856a",
   accent: "#c4856a",
   text: "#ffffff",
@@ -12,16 +13,7 @@ export const luminaTemplate = {
   textMuted: "#f0e6df",
   fontName: "'Playfair Display', serif",
   fontBody: "'Raleway', sans-serif",
-  dividerOpacity: 0.15,
-  border: "none",
-};
-
-export default function LuminaLayout({ template, isBack = false, containerWidth }) {
-  const t = template;
-  const baseWidth = 400;
-  const scale = containerWidth ? containerWidth / baseWidth : 1;
-
-  const data = {
+  defaultData: {
     firstName: "Mia",
     lastName: "Vranes",
     title: "Graphic Designer",
@@ -32,175 +24,143 @@ export default function LuminaLayout({ template, isBack = false, containerWidth 
     city: "Brooklyn, NY",
     instagram: "Instagram: mia_vranes",
     facebook: "Facebook: Mia Vranes",
+  },
+  sectionsFront: [
+    { id: 'front-name', type: 'text', field: 'name', label: 'Name', fontSize: 28, fontFamily: "'Raleway', sans-serif", fontWeight: '700', color: '#ffffff' },
+    { id: 'front-logo', type: 'logo', label: 'Logo' },
+  ],
+  sectionsBack: [
+    { id: 'back-name', type: 'text', field: 'name', label: 'Name', fontSize: 13, fontFamily: "'Raleway', sans-serif", fontWeight: '400', color: '#ffffff' },
+    { id: 'back-title', type: 'text', field: 'title', label: 'Title', fontSize: 10, fontFamily: "'Raleway', sans-serif", fontStyle: 'italic', color: '#f0e6df' },
+    { id: 'back-address', type: 'text', field: 'address', label: 'Address', fontSize: 8, color: '#555555' },
+    { id: 'back-city', type: 'text', field: 'city', label: 'City', fontSize: 8, color: '#555555' },
+    { id: 'back-email', type: 'text', field: 'email', label: 'Email', fontSize: 8, color: '#555555' },
+    { id: 'back-website', type: 'text', field: 'website', label: 'Website', fontSize: 8, color: '#555555' },
+    { id: 'back-instagram', type: 'text', field: 'instagram', label: 'Instagram', fontSize: 8, color: '#555555' },
+    { id: 'back-facebook', type: 'text', field: 'facebook', label: 'Facebook', fontSize: 8, color: '#555555' },
+  ],
+};
+
+export default function LuminaLayout({ 
+  template, 
+  isBack = false, 
+  containerWidth, 
+  userData, 
+  sections = [], 
+  onSelectSection 
+}) {
+  const t = template || luminaTemplate;
+  const scale = (containerWidth || 400) / 400;
+  const data = { ...t.defaultData, ...userData };
+
+  const getSectionStyle = (id, fallbackColor) => {
+    const s = sections.find(sec => sec.id === id);
+    if (!s) return { color: fallbackColor };
+
+    return {
+      color: s.color || fallbackColor,
+      fontFamily: s.fontFamily || t.fontBody,
+      fontSize: s.fontSize ? `${s.fontSize * scale}px` : undefined,
+      fontWeight: s.fontWeight,
+      fontStyle: s.fontStyle,
+      textTransform: s.textTransform || 'none',
+      textDecoration: s.textDecoration || 'none',
+      letterSpacing: s.letterSpacing ? `${s.letterSpacing * scale}em` : undefined,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+    };
+  };
+
+  const handleItemClick = (e, baseId) => {
+    e.stopPropagation();
+    const fullId = isBack ? `back-${baseId}` : `front-${baseId}`;
+    const sectionList = isBack ? t.sectionsBack : t.sectionsFront;
+    const section = sectionList.find(s => s.id === fullId);
+    if (section && onSelectSection) {
+      onSelectSection(section, e.currentTarget.getBoundingClientRect());
+    }
   };
 
   const baseStyle = {
-    width: '100%',
-    height: '100%',
-    border: "none",
-    borderRadius: 0,
-    boxSizing: "border-box",
-    position: "relative",
-    overflow: "hidden",
-    flexShrink: 0,
+    width: '100%', height: '100%', position: "relative", overflow: "hidden", display: "flex", flexShrink: 0,
   };
 
-if (!isBack) {
+  if (!isBack) {
     return (
-      <div style={{
-        ...baseStyle,
-        background: t.bg,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-        overflow: "hidden",
-      }}>
-        <img
-          src={logo}
-          alt="Logo"
-          style={{
-            position: "absolute",
-            width: `${220 * scale}px`,
-            height: 'auto',
-            filter: 'brightness(0) invert(1)',
+      <div style={{ ...baseStyle, background: t.bg, alignItems: "center", justifyContent: "center" }}>
+        <img 
+          src={data.logoUrl || logoIcon} 
+          alt="Logo" 
+          style={{ 
+            position: "absolute", 
+            width: `${220 * scale}px`, 
+            height: 'auto', 
+            filter: data.logoUrl ? 'none' : 'brightness(0) invert(1)', 
             opacity: 0.2,
-          }}
+            cursor: 'pointer'
+          }} 
+          onClick={(e) => handleItemClick(e, 'logo')}
         />
-        <span style={{
-          position: "relative",
-          color: "white",
-          fontSize: `${28 * scale}px`,
-          fontWeight: "700",
-          letterSpacing: "0.3em",
-          textAlign: "center",
-        }}>
+        <div 
+          onClick={(e) => handleItemClick(e, 'name')}
+          style={{ 
+            position: "relative", 
+            textAlign: "center", 
+            letterSpacing: '0.3em',
+            ...getSectionStyle('front-name', '#ffffff') 
+          }}
+        >
           {data.firstName} {data.lastName}
-        </span>
+        </div>
       </div>
     );
   }
 
-  
   return (
-    <div style={{
-      ...baseStyle,
-      display: "flex",
-      flexDirection: "row",
-    }}>
-      <div style={{
-        width: '45%',
-        height: '100%',
-        background: t.bg,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "flex-end",
-        padding: `${28 * scale}px ${24 * scale}px`,
+    <div style={{ ...baseStyle }}>
+      <div style={{ 
+        width: '45%', height: '100%', background: t.bg, 
+        display: "flex", flexDirection: "column", justifyContent: "flex-end", 
+        padding: `${28 * scale}px ${24 * scale}px`, boxSizing: 'border-box' 
       }}>
-        <div style={{
-          fontFamily: "'Raleway', sans-serif",
-          fontSize: `${13 * scale}px`,
-          fontWeight: 400,
-          color: '#ffffff',
-          letterSpacing: `${0.02 * scale}em`,
-          lineHeight: 1.3,
-        }}>
+        <div 
+          onClick={(e) => handleItemClick(e, 'name')}
+          style={getSectionStyle('back-name', '#ffffff')}
+        >
           {data.firstName} {data.lastName}
         </div>
-        <div style={{
-          fontFamily: "'Raleway', sans-serif",
-          fontSize: `${10 * scale}px`,
-          fontWeight: 400,
-          color: '#f0e6df',
-          fontStyle: "italic",
-          marginTop: `${4 * scale}px`,
-          opacity: 0.85,
-        }}>
+        <div 
+          onClick={(e) => handleItemClick(e, 'title')}
+          style={{ ...getSectionStyle('back-title', '#f0e6df'), marginTop: `${4 * scale}px` }}
+        >
           {data.title}
         </div>
       </div>
 
-      <div style={{
-        width: '55%',
-        height: '100%',
-        background: '#ffffff',
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        padding: `${24 * scale}px ${22 * scale}px`,
-        gap: `${14 * scale}px`,
+      <div style={{ 
+        width: '55%', height: '100%', background: '#ffffff', 
+        display: "flex", flexDirection: "column", justifyContent: "center", 
+        padding: `${24 * scale}px ${22 * scale}px`, gap: `${14 * scale}px`, boxSizing: 'border-box' 
       }}>
+        
         <div>
-          <div style={{
-            fontFamily: "'Raleway', sans-serif",
-            fontSize: `${9 * scale}px`,
-            fontWeight: 500,
-            color: '#1a1a1a',
-            letterSpacing: `${0.08 * scale}em`,
-            marginBottom: `${4 * scale}px`,
-          }}>
-            Postal Address
-          </div>
-          {[data.address, data.city].map((line, i) => (
-            <div key={i} style={{
-              fontFamily: "'Raleway', sans-serif",
-              fontSize: `${8 * scale}px`,
-              fontWeight: 300,
-              color: '#555555',
-              lineHeight: 1.6,
-            }}>
-              {line}
-            </div>
-          ))}
+           <div style={{ fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', marginBottom: '4px' }}>Postal Address</div>
+           <div onClick={(e) => handleItemClick(e, 'address')} style={getSectionStyle('back-address', '#555555')}>{data.address}</div>
+           <div onClick={(e) => handleItemClick(e, 'city')} style={getSectionStyle('back-city', '#555555')}>{data.city}</div>
         </div>
 
         <div>
-          <div style={{
-            fontFamily: "'Raleway', sans-serif",
-            fontSize: `${9 * scale}px`,
-            fontWeight: 500,
-            color: '#1a1a1a',
-            letterSpacing: `${0.08 * scale}em`,
-            marginBottom: `${4 * scale}px`,
-          }}>
-            Online
-          </div>
-          {[data.email, data.website].map((line, i) => (
-            <div key={i} style={{
-              fontFamily: "'Raleway', sans-serif",
-              fontSize: `${8 * scale}px`,
-              fontWeight: 300,
-              color: '#555555',
-              lineHeight: 1.6,
-            }}>
-              {line}
-            </div>
-          ))}
+           <div style={{ fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', marginBottom: '4px' }}>Online</div>
+           <div onClick={(e) => handleItemClick(e, 'email')} style={getSectionStyle('back-email', '#555555')}>{data.email}</div>
+           <div onClick={(e) => handleItemClick(e, 'website')} style={getSectionStyle('back-website', '#555555')}>{data.website}</div>
         </div>
 
         <div>
-          <div style={{
-            fontFamily: "'Raleway', sans-serif",
-            fontSize: `${9 * scale}px`,
-            fontWeight: 500,
-            color: '#1a1a1a',
-            letterSpacing: `${0.08 * scale}em`,
-            marginBottom: `${4 * scale}px`,
-          }}>
-            Social
-          </div>
-          {[data.instagram, data.facebook].map((line, i) => (
-            <div key={i} style={{
-              fontFamily: "'Raleway', sans-serif",
-              fontSize: `${8 * scale}px`,
-              fontWeight: 300,
-              color: '#555555',
-              lineHeight: 1.6,
-            }}>
-              {line}
-            </div>
-          ))}
+           <div style={{ fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', marginBottom: '4px' }}>Social</div>
+           <div onClick={(e) => handleItemClick(e, 'instagram')} style={getSectionStyle('back-instagram', '#555555')}>{data.instagram}</div>
+           <div onClick={(e) => handleItemClick(e, 'facebook')} style={getSectionStyle('back-facebook', '#555555')}>{data.facebook}</div>
         </div>
+
       </div>
     </div>
   );

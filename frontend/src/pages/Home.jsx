@@ -38,15 +38,12 @@ function TemplateCard({ template, onSelect }) {
       onClick={() => onSelect(template)}
     >
       <div className={`card-flip ${flipped ? "flipped" : ""}`}>
-
         <div className="card-front" style={{ background: template.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <BusinessCardPreview template={template} containerWidth={containerWidth} />
         </div>
-
         <div className="card-back" style={{ background: template.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <BusinessCardPreview template={template} isBack={true} containerWidth={containerWidth} />
         </div>
-
       </div>
       <p className="template-name">{template.name}</p>
     </div>
@@ -78,7 +75,7 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
               <span className="highlight">Personalize</span><br />
               Export
             </h1>
-            <div className="rotating-card">
+            <div className="rotating-card" style={{ marginLeft: '200px' }}>
               <div className="rotating-card-inner">
                 <div className="rotating-card-front">
                   <img src={front} alt="Front card" />
@@ -128,12 +125,12 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
           <div className="step">
             <div className="step-num">03</div>
             <h3>Export</h3>
-            <p>Download your card as PNG, JPG, or PDF ready for print or digital sharing.</p>
+            <p>Download your card as PNG, JPG, or PDF ready for print.</p>
           </div>
         </div>
       </section>
 
-      <section id="templates" className="templates">
+     <section id="templates" className="templates">
         <div className="templates-header">
           <div>
             <h2 className="section-title">Select a template</h2>
@@ -150,30 +147,15 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
             ))}
           </div>
         </div>
-        <div style={{ position: 'relative' }}>
-          <button 
-            className="slider-nav prev" 
-            onClick={() => {
-              const container = document.querySelector('.templates-grid');
-              container.scrollBy({ left: -420, behavior: 'smooth' });
-            }}
-          >
-            ‹
-          </button>
-          <div className="templates-grid">
-            {filtered.map(t => (
-              <TemplateCard key={t.id} template={t} onSelect={(template) => navigate (`/editor/${template.id}`)} />
-            ))}
-          </div>
-          <button 
-            className="slider-nav next" 
-            onClick={() => {
-              const container = document.querySelector('.templates-grid');
-              container.scrollBy({ left: 420, behavior: 'smooth' });
-            }}
-          >
-            ›
-          </button>
+
+       <div className="templates-grid">
+          {filtered.map(t => (
+            <TemplateCard 
+                key={t.id} 
+                template={t} 
+                onSelect={(template) => navigate(`/editor/${template.id}`)} 
+            />
+          ))}
         </div>
       </section>
 
@@ -190,16 +172,16 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
           </div>
           <div className="feature">
             <h3>High-Resolution Export</h3>
-            <p>PNG, JPG, or PDF — ready for print with professional quality from the first click.</p>
+            <p>PNG, JPG, or PDF — ready for print with professional quality.</p>
           </div>
           <div className="feature">
             <h3>Animations</h3>
-            <p>Fade, slide, zoom — bring your business card to life for digital presentations.</p>
+            <p>Fade, slide, zoom — bring your business card to life.</p>
           </div>
         </div>
       </section>
 
-      <section className="cta">
+     <section className="cta">
         <p className="section-eyebrow">Ready?</p>
         <h2 className="cta-title">Create your business card</h2>
         <button className="btn-primary btn-lg" onClick={() => navigate('/editor')}>

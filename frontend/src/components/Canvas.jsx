@@ -14,274 +14,171 @@ const Canvas = forwardRef(({
   onSelectSection,
   onUpdateSection,
   userData,
+  sections,
 }, ref) => {
-  const containerRef = useRef(null);
-  const [dragging, setDragging] = useState(null);       // custom element dragging
-  const [draggingSection, setDraggingSection] = useState(null); // section dragging
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const containerRef            = useRef(null);
+  const [dragging, setDragging] = useState(null);
+  const [offset, setOffset]     = useState({ x: 0, y: 0 });
   const [containerWidth, setContainerWidth] = useState(400);
 
-  const canvasWidth = 500;
-  const canvasHeight = 300;
+  const CANVAS_W = 500;
+  const CANVAS_H = 300;
 
   useEffect(() => {
-    const updateWidth = () => {
+    const update = () => {
       if (containerRef.current) setContainerWidth(containerRef.current.offsetWidth);
     };
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
 
-  useEffect(() => {
-    drawCanvas();
-  }, [elements, selectedElement, backgroundColor, selectedSection]);
-
-  const getSections = () => {
-    if (!template) return [];
-    return isBack ? (template.sectionsBack || []) : (template.sectionsFront || []);
-  };
-
-  const sectionToPx = (section) => ({
-    x: section.x * canvasWidth,
-    y: section.y * canvasHeight,
-    width: section.width * canvasWidth,
-    height: section.height * canvasHeight,
-  });
+  useEffect(() => { drawCanvas(); }, [elements, selectedElement, backgroundColor]);
 
   const drawCanvas = () => {
     const canvas = ref?.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
     if (!template) {
       ctx.fillStyle = backgroundColor;
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
 
-    elements.forEach(element => {
-      if (element.type === 'text') drawText(ctx, element);
-      else if (element.type === 'shape') drawShape(ctx, element);
-      else if (element.type === 'image') drawImage(ctx, element);
+    elements.forEach(el => {
+      if (el.type === 'text')       drawText(ctx, el);
+      else if (el.type === 'shape') drawShape(ctx, el);
+      else if (el.type === 'image') drawImage(ctx, el);
 
-      if (!showPreview && element.id === selectedElement) {
+      if (!showPreview && el.id === selectedElement) {
         ctx.strokeStyle = '#6366f1';
-        ctx.lineWidth = 2;
+        ctx.lineWidth   = 2;
         ctx.setLineDash([5, 5]);
-        const bounds = getElementBounds(element);
-        ctx.strokeRect(bounds.x - 5, bounds.y - 5, bounds.width + 10, bounds.height + 10);
+        const b = getElementBounds(el);
+        ctx.strokeRect(b.x - 5, b.y - 5, b.width + 10, b.height + 10);
         ctx.setLineDash([]);
       }
     });
-
-    if (!showPreview) {
-      const sections = getSections();
-      sections.forEach(section => {
-        const px = sectionToPx(section);
-        const isSelected = selectedSection?.id === section.id;
-        if (!isSelected) return;
-
-        ctx.fillStyle = 'rgba(99, 102, 241, 0.08)';
-        ctx.fillRect(px.x, px.y, px.width, px.height);
-        ctx.strokeStyle = '#6366f1';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([]);
-        ctx.strokeRect(px.x, px.y, px.width, px.height);
-
-        // Drag handle — mali kvadrat u gornjem lijevom uglu
-        ctx.fillStyle = '#6366f1';
-        ctx.fillRect(px.x, px.y, 12, 12);
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 9px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('⠿', px.x + 6, px.y + 6);
-      });
-    }
   };
 
-  const drawText = (ctx, element) => {
-    ctx.font = `${element.fontStyle || 'normal'} ${element.fontWeight || 'normal'} ${element.fontSize}px ${element.fontFamily}`;
-    ctx.fillStyle = element.color;
-    ctx.textAlign = element.align || 'left';
+  const drawText = (ctx, el) => {
+    ctx.font         = `${el.fontStyle || 'normal'} ${el.fontWeight || 'normal'} ${el.fontSize}px ${el.fontFamily}`;
+    ctx.fillStyle    = el.color;
+    ctx.textAlign    = el.align || 'left';
     ctx.textBaseline = 'top';
-    const lines = element.content.split('\n');
-    const lineHeight = element.fontSize * (element.lineHeight || 1.2);
-    lines.forEach((line, index) => {
-      const x = element.x;
-      const y = element.y + index * lineHeight;
-      ctx.fillText(line, x, y);
-      if (element.textDecoration === 'underline') {
-        const metrics = ctx.measureText(line);
-        ctx.beginPath();
-        ctx.strokeStyle = element.color;
-        ctx.lineWidth = 1;
-        ctx.moveTo(x - (element.align === 'center' ? metrics.width / 2 : 0), y + element.fontSize);
-        ctx.lineTo(x + (element.align === 'center' ? metrics.width / 2 : metrics.width), y + element.fontSize);
-        ctx.stroke();
-      }
+    const lines      = el.content.split('\n');
+    const lh         = el.fontSize * (el.lineHeight || 1.2);
+    lines.forEach((line, i) => {
+      ctx.fillText(line, el.x, el.y + i * lh);
     });
   };
 
-  const drawShape = (ctx, element) => {
-    ctx.fillStyle = element.fill || '#3b82f6';
-    if (element.strokeWidth > 0) {
-      ctx.strokeStyle = element.stroke || '#000000';
-      ctx.lineWidth = element.strokeWidth;
-    }
-    if (element.shapeType === 'rectangle') {
-      ctx.fillRect(element.x, element.y, element.width, element.height);
-      if (element.strokeWidth > 0) ctx.strokeRect(element.x, element.y, element.width, element.height);
-    } else if (element.shapeType === 'circle') {
+  const drawShape = (ctx, el) => {
+    ctx.fillStyle = el.fill || '#3b82f6';
+    if (el.strokeWidth > 0) { ctx.strokeStyle = el.stroke || '#000'; ctx.lineWidth = el.strokeWidth; }
+    if (el.shapeType === 'rectangle') {
+      ctx.fillRect(el.x, el.y, el.width, el.height);
+      if (el.strokeWidth > 0) ctx.strokeRect(el.x, el.y, el.width, el.height);
+    } else if (el.shapeType === 'circle') {
       ctx.beginPath();
-      ctx.arc(element.x + element.width / 2, element.y + element.height / 2, element.width / 2, 0, Math.PI * 2);
-      ctx.fill();
-      if (element.strokeWidth > 0) ctx.stroke();
-    } else if (element.shapeType === 'triangle') {
+      ctx.arc(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, 0, Math.PI * 2);
+      ctx.fill(); if (el.strokeWidth > 0) ctx.stroke();
+    } else if (el.shapeType === 'triangle') {
       ctx.beginPath();
-      ctx.moveTo(element.x + element.width / 2, element.y);
-      ctx.lineTo(element.x + element.width, element.y + element.height);
-      ctx.lineTo(element.x, element.y + element.height);
-      ctx.closePath();
-      ctx.fill();
-      if (element.strokeWidth > 0) ctx.stroke();
-    } else if (element.shapeType === 'line') {
-      ctx.beginPath();
-      ctx.strokeStyle = element.fill;
-      ctx.lineWidth = element.height || 2;
-      ctx.moveTo(element.x, element.y);
-      ctx.lineTo(element.x + element.width, element.y);
-      ctx.stroke();
+      ctx.moveTo(el.x + el.width / 2, el.y);
+      ctx.lineTo(el.x + el.width, el.y + el.height);
+      ctx.lineTo(el.x, el.y + el.height);
+      ctx.closePath(); ctx.fill(); if (el.strokeWidth > 0) ctx.stroke();
+    } else if (el.shapeType === 'line') {
+      ctx.beginPath(); ctx.strokeStyle = el.fill; ctx.lineWidth = el.height || 2;
+      ctx.moveTo(el.x, el.y); ctx.lineTo(el.x + el.width, el.y); ctx.stroke();
     }
   };
 
-  const drawImage = (ctx, element) => {
-    if (element.imgElement) {
-      ctx.drawImage(element.imgElement, element.x, element.y, element.width, element.height);
-    }
+  const drawImage = (ctx, el) => {
+    if (el.imgElement) ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
   };
 
-  const getElementBounds = (element) => {
-    if (element.type === 'text') {
+  const getElementBounds = (el) => {
+    if (el.type === 'text') {
       const canvas = ref?.current;
-      if (!canvas) return { x: 0, y: 0, width: 0, height: 0 };
-      const ctx = canvas.getContext('2d');
-      ctx.font = `${element.fontStyle || 'normal'} ${element.fontWeight || 'normal'} ${element.fontSize}px ${element.fontFamily}`;
-      const lines = element.content.split('\n');
-      const lineHeight = element.fontSize * (element.lineHeight || 1.2);
-      let maxWidth = 0;
-      lines.forEach(line => {
-        const metrics = ctx.measureText(line);
-        maxWidth = Math.max(maxWidth, metrics.width);
-      });
-      return { x: element.x, y: element.y, width: maxWidth, height: lines.length * lineHeight };
+      if (!canvas) return { x:0, y:0, width:0, height:0 };
+      const ctx  = canvas.getContext('2d');
+      ctx.font   = `${el.fontStyle||'normal'} ${el.fontWeight||'normal'} ${el.fontSize}px ${el.fontFamily}`;
+      const lines = el.content.split('\n');
+      const lh    = el.fontSize * (el.lineHeight || 1.2);
+      let maxW    = 0;
+      lines.forEach(line => { maxW = Math.max(maxW, ctx.measureText(line).width); });
+      return { x: el.x, y: el.y, width: maxW, height: lines.length * lh };
     }
-    if (element.type === 'shape' || element.type === 'image') {
-      return { x: element.x, y: element.y, width: element.width, height: element.height };
-    }
-    return { x: 0, y: 0, width: 0, height: 0 };
+    return { x: el.x, y: el.y, width: el.width, height: el.height };
   };
 
   const getMousePos = (e) => {
     const rect = ref.current.getBoundingClientRect();
     return {
-      x: (e.clientX - rect.left) * (canvasWidth / rect.width),
-      y: (e.clientY - rect.top) * (canvasHeight / rect.height),
+      x: (e.clientX - rect.left) * (CANVAS_W / rect.width),
+      y: (e.clientY - rect.top)  * (CANVAS_H / rect.height),
     };
   };
 
   const handleMouseDown = (e) => {
     if (showPreview) return;
     const { x, y } = getMousePos(e);
-
-    // Provjeri da li se draga sekcija (već selektovana)
-    if (selectedSection && template) {
-      const px = sectionToPx(selectedSection);
-      if (x >= px.x && x <= px.x + px.width && y >= px.y && y <= px.y + px.height) {
-        setDraggingSection(selectedSection);
-        setOffset({ x: x - px.x, y: y - px.y });
-        return;
-      }
-    }
-
-    // Provjeri klik na drugu sekciju
-    if (template && onSelectSection) {
-      const sections = getSections();
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const section = sections[i];
-        const px = sectionToPx(section);
-        if (x >= px.x && x <= px.x + px.width && y >= px.y && y <= px.y + px.height) {
-          onSelectSection(section);
-          setSelectedElement(null);
-          return;
-        }
-      }
-      onSelectSection(null);
-    }
-
-    // Provjeri klik na custom element
     for (let i = elements.length - 1; i >= 0; i--) {
-      const element = elements[i];
-      const bounds = getElementBounds(element);
-      if (x >= bounds.x && x <= bounds.x + bounds.width && y >= bounds.y && y <= bounds.y + bounds.height) {
-        setSelectedElement(element.id);
-        setDragging(element.id);
-        setOffset({ x: x - element.x, y: y - element.y });
+      const el = elements[i];
+      const b  = getElementBounds(el);
+      if (x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height) {
+        setSelectedElement(el.id);
+        setDragging(el.id);
+        setOffset({ x: x - el.x, y: y - el.y });
         return;
       }
     }
-
     setSelectedElement(null);
   };
 
   const handleMouseMove = (e) => {
-    if (showPreview) return;
+    if (!dragging || showPreview) return;
     const { x, y } = getMousePos(e);
-
-    // Drag sekcije
-    if (draggingSection && onUpdateSection) {
-      const newX = Math.max(0, Math.min((x - offset.x) / canvasWidth, 1 - draggingSection.width));
-      const newY = Math.max(0, Math.min((y - offset.y) / canvasHeight, 1 - draggingSection.height));
-      onUpdateSection(draggingSection.id, { x: newX, y: newY });
-      return;
-    }
-
-    // Drag custom elementa
-    if (dragging) {
-      onUpdateElement(dragging, { x: x - offset.x, y: y - offset.y });
-    }
+    onUpdateElement(dragging, { x: x - offset.x, y: y - offset.y });
   };
 
-  const handleMouseUp = () => {
-    setDragging(null);
-    setDraggingSection(null);
-  };
+  const handleMouseUp = () => { setDragging(null); };
 
   const LayoutComponent = template?.layoutComponent;
 
   return (
     <div ref={containerRef} className="canvas-container">
       <div className="canvas-wrapper" style={{ position: 'relative' }}>
+
         {LayoutComponent && (
           <div style={{
-            position: 'absolute', top: 0, left: 0,
-            width: '100%', height: '100%',
-            zIndex: 0, pointerEvents: 'none',
-          }}>
+            position: 'absolute', top:0, left:0, width:'100%', height:'100%',
+            zIndex: 2,
+            pointerEvents: showPreview ? 'none' : 'auto',
+          }}
+          onMouseDown={e => e.stopPropagation()} // 🔹 stopPropagation za FloatingEditor
+          >
             <LayoutComponent
               template={template}
               isBack={isBack}
               containerWidth={containerWidth}
               userData={userData}
+              sections={sections}
+              selectedSection={selectedSection}
+              onSelectSection={(section, rect) => onSelectSection(section, rect)}
+              onUpdateSection={onUpdateSection}
+              showPreview={showPreview}
             />
           </div>
         )}
 
         <canvas
           ref={ref}
-          width={canvasWidth}
-          height={canvasHeight}
+          width={CANVAS_W}
+          height={CANVAS_H}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -299,5 +196,4 @@ const Canvas = forwardRef(({
 });
 
 Canvas.displayName = 'Canvas';
-
 export default Canvas;

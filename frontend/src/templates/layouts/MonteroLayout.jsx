@@ -1,5 +1,5 @@
-import logo from '../../assets/logo.png';
-import qrCode from '../../assets/qr.svg';
+import React from 'react';
+import logoIcon from '../../assets/logo.png';
 
 export const monteroTemplate = {
   id: 4,
@@ -13,11 +13,27 @@ export const monteroTemplate = {
   textMuted: "#8a8a8aff",
   fontName: "Cormorant Garamond, serif",
   fontBody: "Montserrat, sans-serif",
-  dividerOpacity: 0.2,
-  border: "none",
+  defaultData: {
+    firstName: "MIA",
+    lastName: "VRANES",
+    title: "Web Designer",
+    phone: "+123-456-7890",
+    email: "mia@example.com",
+    website: "www.miavranes.com",
+  },
+  sectionsFront: [
+    { id: 'front-logo',  type: 'logo', label: 'Logo' },
+    { id: 'front-name',  type: 'text', field: 'name',  label: 'Name',  fontSize: 32, fontFamily: 'Cormorant Garamond, serif', fontWeight: '400', color: '#4a4a4a' },
+    { id: 'front-title', type: 'text', field: 'title', label: 'Tagline', fontSize: 8, fontFamily: 'Montserrat, sans-serif', color: '#8a8a8a' },
+  ],
+  sectionsBack: [
+    { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    fontSize: 22, fontFamily: 'Montserrat, sans-serif', fontWeight: '400', color: '#4a4a4a' },
+    { id: 'back-title',   type: 'text', field: 'title',   label: 'Title',   fontSize: 12, fontFamily: 'Montserrat, sans-serif', fontStyle: 'italic', color: '#8a8a8a' },
+    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   fontSize: 10, color: '#4a4a4a' },
+    { id: 'back-website', type: 'text', field: 'website', label: 'Website', fontSize: 10, color: '#4a4a4a' },
+    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   fontSize: 10, color: '#4a4a4a' },
+  ],
 };
-
-
 
 const VerticalLines = ({ color, scale }) => (
   <svg width={60 * scale} height={200 * scale} viewBox="0 0 60 200" fill="none">
@@ -28,87 +44,78 @@ const VerticalLines = ({ color, scale }) => (
   </svg>
 );
 
-export default function MonteroLayout({ template, isBack = false, containerWidth }) {
-  const t = template;
-  const baseWidth = 400;
-  const scale = containerWidth ? containerWidth / baseWidth : 1;
+export default function MonteroLayout({ 
+  template, 
+  isBack = false, 
+  containerWidth, 
+  userData, 
+  sections = [], 
+  onSelectSection 
+}) {
+  const t = template || monteroTemplate;
+  const scale = (containerWidth || 400) / 400;
+  const data = { ...t.defaultData, ...userData };
 
-  const data = {
-    firstName: "MIA",
-    lastName: "VRANES",
-    title: "Web Designer",
-    phone: "+123-456-7890",
-    email: "mia@example.com",
-    website: "www.miavranes.com",
+  const getSectionStyle = (id, fallbackColor, fallbackFont) => {
+    const s = sections.find(sec => sec.id === id);
+    if (!s) return { color: fallbackColor, fontFamily: fallbackFont };
+
+    return {
+      color: s.color || fallbackColor,
+      fontFamily: s.fontFamily || fallbackFont,
+      fontSize: s.fontSize ? `${s.fontSize * scale}px` : undefined,
+      fontWeight: s.fontWeight || '400',
+      fontStyle: s.fontStyle || 'normal',
+      textTransform: s.textTransform || 'none',
+      textDecoration: s.textDecoration || 'none',
+      letterSpacing: s.letterSpacing ? `${s.letterSpacing * scale}em` : undefined,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      lineHeight: 1.3
+    };
+  };
+
+  const handleItemClick = (e, baseId) => {
+    e.stopPropagation();
+    const fullId = isBack ? `back-${baseId}` : `front-${baseId}`;
+    const sectionList = isBack ? t.sectionsBack : t.sectionsFront;
+    const section = sectionList.find(s => s.id === fullId);
+    if (section && onSelectSection) {
+      onSelectSection(section, e.currentTarget.getBoundingClientRect());
+    }
   };
 
   const baseStyle = {
-    width: '100%',
-    height: '100%',
-    background: t.bg,
-    border: t.border || "none",
-    borderRadius: 0,
-    padding: `${50 * scale}px`,
-    boxSizing: "border-box",
-    position: "relative",
-    overflow: "hidden",
-    flexShrink: 0,
+    width: '100%', height: '100%', background: t.bg,
+    padding: `${50 * scale}px`, boxSizing: "border-box",
+    position: "relative", overflow: "hidden", display: "flex", flexShrink: 0,
   };
 
   if (isBack) {
     return (
-      <div style={{ 
-        ...baseStyle,
-        display: "flex", 
-        flexDirection: "column", 
-        justifyContent: "space-between",
-      }}>
-        <div style={{ 
-          color: t.text, 
-          fontFamily: t.fontBody,
-          fontSize: `${18 * scale}px`,
-          fontWeight: 300,
-          letterSpacing: `${0.02 * scale}em`,
-          lineHeight: 1.4
-        }}>
-          <div style={{ 
-            fontSize: `${22 * scale}px`,
-            marginBottom: `${4 * scale}px`,
-            fontWeight: 400
-          }}>
+      <div style={{ ...baseStyle, flexDirection: "column", justifyContent: "space-between" }}>
+        <div>
+          <div 
+            onClick={(e) => handleItemClick(e, 'name')}
+            style={{ ...getSectionStyle('back-name', t.text, t.fontBody), marginBottom: `${4 * scale}px` }}
+          >
             {data.firstName} {data.lastName}
           </div>
-          <div style={{ 
-            fontSize: `${12 * scale}px`,
-            fontStyle: "italic",
-            color: t.textMuted,
-            marginBottom: `${30 * scale}px`
-          }}>
+          <div 
+            onClick={(e) => handleItemClick(e, 'title')}
+            style={getSectionStyle('back-title', t.textMuted, t.fontBody)}
+          >
             {data.title}
           </div>
         </div>
 
-        <div style={{ 
-          display: "flex", 
-          flexDirection: "column", 
-          gap: `${8 * scale}px`,
-          fontFamily: t.fontBody,
-          fontSize: `${10 * scale}px`,
-          color: t.text,
-          fontWeight: 300,
-          lineHeight: 1.6
-        }}>
-          <div>{data.phone}</div>
-          <div>{data.website}</div>
-          <div>{data.email}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: `${8 * scale}px`, ...getSectionStyle('back-phone', t.text, t.fontBody), fontSize: `${10 * scale}px`, fontWeight: 300 }}>
+          <div onClick={(e) => handleItemClick(e, 'phone')}>{data.phone}</div>
+          <div onClick={(e) => handleItemClick(e, 'website')}>{data.website}</div>
+          <div onClick={(e) => handleItemClick(e, 'email')}>{data.email}</div>
         </div>
 
-        <div style={{
-          position: 'absolute',
-          top: `${50 * scale}px`,
-          right: `${20 * scale}px`,
-          opacity: 0.9
-        }}>
+        <div style={{ position: 'absolute', top: `${50 * scale}px`, right: `${20 * scale}px`, opacity: 0.9 }}>
           <VerticalLines color={t.text} scale={scale} />
         </div>
       </div>
@@ -116,48 +123,33 @@ export default function MonteroLayout({ template, isBack = false, containerWidth
   }
 
   return (
-    <div style={{ 
-      ...baseStyle,
-      display: "flex", 
-      flexDirection: "column",
-      justifyContent: "center", 
-      alignItems: "center",
-      textAlign: "center"
-    }}>
-      <div style={{
-        marginBottom: `${25 * scale}px`,
-      }}>
+    <div style={{ ...baseStyle, flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
+      <div style={{ marginBottom: `${25 * scale}px` }}>
         <img 
-          src={logo} 
+          src={data.logoUrl || logoIcon} 
           alt="Logo" 
-          style={{ 
-            width: `${80 * scale}px`, 
-            height: 'auto',
-            objectFit: 'contain'
-          }} 
+          style={{ width: `${80 * scale}px`, height: 'auto', objectFit: 'contain', cursor: 'pointer' }} 
+          onClick={(e) => handleItemClick(e, 'logo')}
         />
       </div>
-
-      <div style={{ 
-        color: t.text, 
-        fontFamily: t.fontName,
-        fontSize: `${32 * scale}px`,
-        letterSpacing: `${0.08 * scale}em`,
-        fontWeight: 400,
-        marginBottom: `${8 * scale}px`
-      }}>
-        MIA VRANES
+      <div 
+        onClick={(e) => handleItemClick(e, 'name')}
+        style={{ 
+          letterSpacing: `${0.08 * scale}em`, 
+          ...getSectionStyle('front-name', t.text, t.fontName) 
+        }}
+      >
+        {data.firstName} {data.lastName}
       </div>
-
-      <div style={{ 
-        color: t.textMuted, 
-        fontFamily: t.fontBody,
-        fontSize: `${8 * scale}px`,
-        letterSpacing: `${0.15 * scale}em`,
-        fontStyle: "italic",
-        fontWeight: 300
-      }}>
-        Modern Design for Growing Brands.
+      <div 
+        onClick={(e) => handleItemClick(e, 'title')}
+        style={{ 
+          marginTop: `${8 * scale}px`,
+          letterSpacing: `${0.15 * scale}em`,
+          ...getSectionStyle('front-title', t.textMuted, t.fontBody) 
+        }}
+      >
+        {data.title}
       </div>
     </div>
   );
