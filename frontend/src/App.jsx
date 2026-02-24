@@ -4,14 +4,14 @@ import Home from './pages/Home';
 
 function App() {
   return (
-   <BrowserRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-       <Route path="/editor/:templateId" element={<Editor />} />
-        </Routes>
+        <Route path="/editor" element={<Editor />} />
+        <Route path="/editor/:templateId" element={<Editor />} />
+      </Routes>
     </BrowserRouter>
-  
-  )
+  );
 }
 
-export default App
+export default App;

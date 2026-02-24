@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import front from '../assets/front.png';
 import back from '../assets/back.png';
 import { templates } from '../templates';
+import OnboardingModal from '../components/OnboardingModal';
 import "../css/Home.css";
 
 const categories = ["All", "Modern", "Elegant", "Minimal", "Creative"];
@@ -52,6 +53,7 @@ function TemplateCard({ template, onSelect }) {
 
 export default function Home({ onStartEditor, onLoadTemplate }) {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [showModal, setShowModal] = useState(false);
   const navigate = useNavigate();
 
   const filtered = activeCategory === "All"
@@ -93,7 +95,7 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
           </p>
 
           <div className="actions">
-            <button className="btn-primary" onClick={() => navigate('/editor')}>
+            <button className="btn-primary" onClick={() => setShowModal(true)}>
               Start from scratch
             </button>
             <button className="btn-secondary" onClick={() =>
@@ -130,7 +132,7 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
         </div>
       </section>
 
-     <section id="templates" className="templates">
+      <section id="templates" className="templates">
         <div className="templates-header">
           <div>
             <h2 className="section-title">Select a template</h2>
@@ -148,12 +150,12 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
           </div>
         </div>
 
-       <div className="templates-grid">
+        <div className="templates-grid">
           {filtered.map(t => (
-            <TemplateCard 
-                key={t.id} 
-                template={t} 
-                onSelect={(template) => navigate(`/editor/${template.id}`)} 
+            <TemplateCard
+              key={t.id}
+              template={t}
+              onSelect={(template) => navigate(`/editor/${template.id}`)}
             />
           ))}
         </div>
@@ -181,13 +183,15 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
         </div>
       </section>
 
-     <section className="cta">
+      <section className="cta">
         <p className="section-eyebrow">Ready?</p>
         <h2 className="cta-title">Create your business card</h2>
-        <button className="btn-primary btn-lg" onClick={() => navigate('/editor')}>
+        <button className="btn-primary btn-lg" onClick={() => setShowModal(true)}>
           Open Editor
         </button>
       </section>
+
+      {showModal && <OnboardingModal onClose={() => setShowModal(false)} />}
     </div>
   );
 }
