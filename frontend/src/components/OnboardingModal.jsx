@@ -89,8 +89,12 @@ export default function OnboardingModal({ onClose }) {
                     onClick={() => setSelectedTemplateId(t.id)}
                   >
                     <div className="modal-template-preview" style={{ background: t.bg }}>
-                      <Layout template={t} isBack={false} containerWidth={220} />
-                    </div>
+                      <Layout
+                        template={t}
+                        isBack={false}
+                        containerWidth={220}
+                        sections={t.sectionsFront}  
+                      /></div>
                     <p className="modal-template-name">{t.name}</p>
                   </div>
                 );
