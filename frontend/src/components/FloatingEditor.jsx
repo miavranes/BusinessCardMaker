@@ -8,7 +8,8 @@ export default function FloatingEditor({
   onUpdateUserData,
   onUpdateSection,
   onClose,
-  onLogoUpload
+  onLogoUpload,
+  onDeleteSection
 }) {
   if (!selectedSection || !anchorRect) return null;
 
@@ -41,19 +42,33 @@ export default function FloatingEditor({
   const sectionLabel = selectedSection.label || selectedSection.id;
 
   return (
-    <div className="floating-editor" style={style} onClick={e => e.stopPropagation()}>
+    <div className="floating-editor" style={style} onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} >
 
-      <div className="fe-header">
+     <div className="fe-header">
         <div className="fe-header-left">
           <div className="fe-header-dot" />
-          <span className="fe-header-title">{sectionLabel}</span>
-        </div>
-        <button className="fe-close" onClick={onClose}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M18 6L6 18M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
+            <span className="fe-header-title">{sectionLabel}</span>
+     </div>
+   <div className="fe-header-actions">
+    <button
+      className="fe-delete"
+      onClick={() => { onDeleteSection(selectedSection.id); onClose(); }}
+      title="Remove section"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-1 14H6L5 6"/>
+        <path d="M10 11v6M14 11v6"/>
+        <path d="M9 6V4h6v2"/>
+      </svg>
+    </button>
+    <button className="fe-close" onClick={onClose}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M18 6L6 18M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+</div>
 
       <div className="fe-body">
 

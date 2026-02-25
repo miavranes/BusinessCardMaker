@@ -36,15 +36,15 @@ export const blancClassicTemplate = {
   ],
 };
 
-const PhoneIcon = ({ color, size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
-);
-const MailIcon = ({ color, size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-);
-const WebIcon = ({ color, size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-);
+    const PhoneIcon = ({ color, size }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+    );
+    const MailIcon = ({ color, size }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+    );
+    const WebIcon = ({ color, size }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    );
 
 export default function BlancClassicLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
   const t = template || blancClassicTemplate;
@@ -68,10 +68,12 @@ export default function BlancClassicLayout({ template, isBack = false, container
     };
   };
 
-  const handleItemClick = (e, id) => {
+  const handleClick = (e, id) => {
     e.stopPropagation();
     const section = sections.find(s => s.id === id);
-    if (section && onSelectSection) onSelectSection(section, e.currentTarget.getBoundingClientRect());
+    if (section && onSelectSection) {
+      onSelectSection(section, e.currentTarget.getBoundingClientRect());
+    }
   };
 
   const base = {
@@ -83,69 +85,84 @@ export default function BlancClassicLayout({ template, isBack = false, container
   if (isBack) {
     return (
       <div style={base}>
-        {/* Name */}
-        <div
-          onClick={(e) => handleItemClick(e, 'back-name')}
-          style={{ ...getSectionPos(sections, 'back-name'), ...getSectionStyle('back-name'), display: 'flex', alignItems: 'center' }}
-        >
-          {data.firstName} {data.lastName}
-        </div>
+        {sections.find(s => s.id === 'back-name') && (
+          <div
+            onClick={(e) => handleClick(e, 'back-name')}
+            style={{ ...getSectionPos(sections, 'back-name'), ...getSectionStyle('back-name'), display: 'flex', alignItems: 'center' }}
+          >
+            {data.firstName} {data.lastName}
+          </div>
+        )}
 
-        {/* Title */}
-        <div
-          onClick={(e) => handleItemClick(e, 'back-title')}
-          style={{ ...getSectionPos(sections, 'back-title'), ...getSectionStyle('back-title'), display: 'flex', alignItems: 'center' }}
-        >
-          {data.title}
-        </div>
+        {sections.find(s => s.id === 'back-title') && (
+          <div
+            onClick={(e) => handleClick(e, 'back-title')}
+            style={{ ...getSectionPos(sections, 'back-title'), ...getSectionStyle('back-title'), display: 'flex', alignItems: 'center' }}
+          >
+            {data.title}
+          </div>
+        )}
 
-        {/* Divider */}
         <div style={{ position: 'absolute', left: '46%', top: '20%', width: '1px', height: '60%', background: t.accent, opacity: t.dividerOpacity }} />
 
-        {/* Phone */}
-        <div onClick={(e) => handleItemClick(e, 'back-phone')}
-          style={{ ...getSectionPos(sections, 'back-phone'), ...getSectionStyle('back-phone'), display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <PhoneIcon color={t.accent} size={11 * scale} /><span>{data.phone}</span>
-        </div>
+        {sections.find(s => s.id === 'back-phone') && (
+          <div
+            onClick={(e) => handleClick(e, 'back-phone')}
+            style={{ ...getSectionPos(sections, 'back-phone'), ...getSectionStyle('back-phone'), display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <PhoneIcon color={t.accent} size={11 * scale} /><span>{data.phone}</span>
+          </div>
+        )}
 
-        {/* Email */}
-        <div onClick={(e) => handleItemClick(e, 'back-email')}
-          style={{ ...getSectionPos(sections, 'back-email'), ...getSectionStyle('back-email'), display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <MailIcon color={t.accent} size={11 * scale} /><span>{data.email}</span>
-        </div>
+        {sections.find(s => s.id === 'back-email') && (
+          <div
+            onClick={(e) => handleClick(e, 'back-email')}
+            style={{ ...getSectionPos(sections, 'back-email'), ...getSectionStyle('back-email'), display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <MailIcon color={t.accent} size={11 * scale} /><span>{data.email}</span>
+          </div>
+        )}
 
-        {/* Website */}
-        <div onClick={(e) => handleItemClick(e, 'back-website')}
-          style={{ ...getSectionPos(sections, 'back-website'), ...getSectionStyle('back-website'), display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <WebIcon color={t.accent} size={11 * scale} /><span>{data.website}</span>
-        </div>
+        {sections.find(s => s.id === 'back-website') && (
+          <div
+            onClick={(e) => handleClick(e, 'back-website')}
+            style={{ ...getSectionPos(sections, 'back-website'), ...getSectionStyle('back-website'), display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <WebIcon color={t.accent} size={11 * scale} /><span>{data.website}</span>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div style={base}>
-      {/* Logo */}
-      <img
-        src={data.logoUrl || logoIcon}
-        alt="Logo"
-        onClick={(e) => handleItemClick(e, 'front-logo')}
-        style={{ ...getSectionPos(sections, 'front-logo'), objectFit: 'contain', cursor: 'pointer' }}
-      />
-      {/* Name */}
-      <div
-        onClick={(e) => handleItemClick(e, 'front-name')}
-        style={{ ...getSectionPos(sections, 'front-name'), ...getSectionStyle('front-name'), display: 'flex', alignItems: 'center' }}
-      >
-        {data.firstName} {data.lastName}
-      </div>
-      {/* Title */}
-      <div
-        onClick={(e) => handleItemClick(e, 'front-title')}
-        style={{ ...getSectionPos(sections, 'front-title'), ...getSectionStyle('front-title'), display: 'flex', alignItems: 'center' }}
-      >
-        {data.title}
-      </div>
+      {sections.find(s => s.id === 'front-logo') && (
+        <img
+          src={data.logoUrl || logoIcon}
+          alt="Logo"
+          onClick={(e) => handleClick(e, 'front-logo')}
+          style={{ ...getSectionPos(sections, 'front-logo'), objectFit: 'contain', cursor: 'pointer' }}
+        />
+      )}
+
+      {sections.find(s => s.id === 'front-name') && (
+        <div
+          onClick={(e) => handleClick(e, 'front-name')}
+          style={{ ...getSectionPos(sections, 'front-name'), ...getSectionStyle('front-name'), display: 'flex', alignItems: 'center' }}
+        >
+          {data.firstName} {data.lastName}
+        </div>
+      )}
+
+      {sections.find(s => s.id === 'front-title') && (
+        <div
+          onClick={(e) => handleClick(e, 'front-title')}
+          style={{ ...getSectionPos(sections, 'front-title'), ...getSectionStyle('front-title'), display: 'flex', alignItems: 'center' }}
+        >
+          {data.title}
+        </div>
+      )}
     </div>
   );
 }
