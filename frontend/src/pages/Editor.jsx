@@ -52,7 +52,6 @@ export default function Editor() {
   const [selectedElement, setSelectedElement] = useState(null);
 
   const updateElement = (id, updates) => setElements(prev => prev.map(el => el.id === id ? { ...el, ...updates } : el));
-
   const [bgFront, setBgFront] = useState(selectedTemplate?.bg || '#ffffff');
   const [bgBack, setBgBack] = useState(selectedTemplate?.bgBack || '#ffffff');
 
@@ -62,16 +61,7 @@ export default function Editor() {
   };
 
   const handleTextChange = (field, newValue) => {
-    setUserData(prev => {
-      if (selectedSection) {
-        const isBack = String(selectedSection.id).startsWith('back-');
-        const prefix = isBack ? 'back_' : 'front_';
-        const key = prefix + field;
-        console.log(`Menjam polje: ${key} u vrednost: ${newValue}`);
-        return { ...prev, [key]: newValue };
-      }
-      return { ...prev, [field]: newValue };
-    });
+  setUserData(prev => ({ ...prev, [field]: newValue }));
   };
 
   const activeTemplate = selectedTemplate ? { ...selectedTemplate, sectionsFront, sectionsBack } : null;

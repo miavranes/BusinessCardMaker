@@ -1,7 +1,18 @@
 .editor-container {
-  min-height: 100vh;
   background-color: #f3f4f6;
   display: flex;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  isolation: isolate;
+}
+
+.editor-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-color: #f3f4f6;
+  z-index: -1;
 }
 
 .canvas-area {

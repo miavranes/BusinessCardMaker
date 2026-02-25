@@ -150,3 +150,16 @@ export const FONT_OPTIONS = [
   { label: 'Playfair Display',   value: "'Playfair Display', serif" },
   { label: 'Montserrat',         value: "'Montserrat', sans-serif" },
 ];
+
+export function getSectionPos(sections, id) {
+  const s = sections?.find(sec => sec.id === id);
+  if (!s) return {};
+  return {
+    position: 'absolute',
+    left:   `${s.x * 100}%`,
+    top:    `${s.y * 100}%`,
+    width:  `${s.width * 100}%`,
+    height: `${s.height * 100}%`,
+    boxSizing: 'border-box',
+  };
+}

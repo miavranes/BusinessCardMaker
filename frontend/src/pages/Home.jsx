@@ -10,7 +10,15 @@ const categories = ["All", "Modern", "Elegant", "Minimal", "Creative"];
 
 function BusinessCardPreview({ template, isBack = false, containerWidth }) {
   const LayoutComponent = template.layoutComponent;
-  return <LayoutComponent template={template} isBack={isBack} containerWidth={containerWidth} />;
+  return (
+    <LayoutComponent
+      template={template}
+      isBack={isBack}
+      containerWidth={containerWidth}
+      userData={template.defaultData}
+      sections={isBack ? template.sectionsBack : template.sectionsFront}
+    />
+  );
 }
 
 function TemplateCard({ template, onSelect }) {
