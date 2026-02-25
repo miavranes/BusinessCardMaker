@@ -18,10 +18,19 @@ export default function Editor() {
   const canvasBackRef = useRef(null);
   const editorRef = useRef(null);
 
-  const [userData, setUserData] = useState(() => ({
+  const [userData, setUserData] = useState(() => {
+  const baseData = {
     ...selectedTemplate?.defaultData,
     ...prefill,
-  }));
+  };
+  if (prefill.name) {
+    const parts = prefill.name.trim().split(/\s+/); 
+    baseData.firstName = parts[0] || ''; 
+    baseData.lastName = parts.slice(1).join(' ') || '';
+  }
+
+  return baseData;
+});
 
   const updateUserData = (field, value) =>
     setUserData(prev => ({ ...prev, [field]: value }));

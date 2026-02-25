@@ -1,5 +1,6 @@
 import { FONT_OPTIONS } from '../sectionSchema';
 import '../css/FloatingEditor.css';
+import React from 'react';
 
 export default function FloatingEditor({
   selectedSection,
@@ -13,17 +14,14 @@ export default function FloatingEditor({
 }) {
   if (!selectedSection || !anchorRect) return null;
 
-  const isBack = String(selectedSection.id).startsWith('back-');
-  const prefix = isBack ? 'back_' : '';
-
-  const PANEL_W = 290;
-  const PANEL_H = 420;
+  const PANEL_W = 320;
+  const PANEL_H = 520;
   const GAP = 12;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
   let left = anchorRect.right + GAP;
-  let top  = anchorRect.top;
+  let top = anchorRect.top;
 
   if (left + PANEL_W > vw - 8) left = anchorRect.left - PANEL_W - GAP;
   if (left < 8) left = 8;
@@ -32,174 +30,117 @@ export default function FloatingEditor({
 
   const style = { position: 'fixed', top, left, zIndex: 9999 };
 
-  const isLogo      = selectedSection.type === 'logo';
+  const isLogo = selectedSection.type === 'logo';
+  const isText = selectedSection.type === 'text';
   const isNameField = selectedSection.field === 'name';
 
-  const getValue = (field) => {
-  return userData[field] ?? '';
-};
-
+  const getValue = (field) => userData[field] ?? '';
   const sectionLabel = selectedSection.label || selectedSection.id;
 
-  return (
-    <div className="floating-editor" style={style} onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} >
+  // Normalizuje width/height između 0.05 i 1
+  const normalize = (val) => Math.max(0.05, Math.min(1, val));
 
-     <div className="fe-header">
+  return (
+    <div className="floating-editor" style={style} onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+      <div className="fe-header">
         <div className="fe-header-left">
           <div className="fe-header-dot" />
-            <span className="fe-header-title">{sectionLabel}</span>
-     </div>
-   <div className="fe-header-actions">
-    <button
-      className="fe-delete"
-      onClick={() => { onDeleteSection(selectedSection.id); onClose(); }}
-      title="Remove section"
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <polyline points="3 6 5 6 21 6"/>
-        <path d="M19 6l-1 14H6L5 6"/>
-        <path d="M10 11v6M14 11v6"/>
-        <path d="M9 6V4h6v2"/>
-      </svg>
-    </button>
-    <button className="fe-close" onClick={onClose}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path d="M18 6L6 18M6 6l12 12"/>
-      </svg>
-    </button>
-  </div>
-</div>
+          <span className="fe-header-title">{sectionLabel}</span>
+        </div>
+        <div className="fe-header-actions">
+          <button className="fe-delete" onClick={() => { onDeleteSection(selectedSection.id); onClose(); }}>Delete</button>
+          <button className="fe-close" onClick={onClose}>Close</button>
+        </div>
+      </div>
 
       <div className="fe-body">
 
-        {isLogo ? (
-          <div className="fe-group">
-            <label className="fe-label">Logo Image</label>
-            <input
-              type="file"
-              id="logo-upload-input"
-              hidden
-              accept="image/*"
-              onChange={e => { if (e.target.files[0]) onLogoUpload(e.target.files[0]); }}
-            />
-            <label htmlFor="logo-upload-input" className="fe-upload-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              Upload Image
-            </label>
-          </div>
-        ) : (
+        {isLogo && (
           <>
-            
+            <div className="fe-group">
+              <label className="fe-label">Width (%)</label>
+              <div className="fe-stepper">
+                <button onClick={() => onUpdateSection(selectedSection.id, { width: normalize((selectedSection.width || 0.5) - 0.05) })}>−</button>
+                <span>{Math.round((selectedSection.width || 0.5) * 100)}</span>
+                <button onClick={() => onUpdateSection(selectedSection.id, { width: normalize((selectedSection.width || 0.5) + 0.05) })}>+</button>
+              </div>
+            </div>
+
+            <div className="fe-group">
+              <label className="fe-label">Height (%)</label>
+              <div className="fe-stepper">
+                <button onClick={() => onUpdateSection(selectedSection.id, { height: normalize((selectedSection.height || 0.5) - 0.05) })}>−</button>
+                <span>{Math.round((selectedSection.height || 0.5) * 100)}</span>
+                <button onClick={() => onUpdateSection(selectedSection.id, { height: normalize((selectedSection.height || 0.5) + 0.05) })}>+</button>
+              </div>
+            </div>
+
+            <div className="fe-group">
+              <label className="fe-label">Overlay Color</label>
+              <input
+                type="color"
+                value={selectedSection.color || '#000000'}
+                onChange={e => onUpdateSection(selectedSection.id, { color: e.target.value })}
+              />
+            </div>
+
+            <div className="fe-group">
+              <label className="fe-label">Upload Logo</label>
+              <input
+                type="file"
+                id="logo-upload-input"
+                hidden
+                accept="image/*"
+                onChange={e => { if (e.target.files[0]) onLogoUpload(e.target.files[0]); }}
+              />
+              <label htmlFor="logo-upload-input" className="fe-upload-btn">Choose File</label>
+            </div>
+          </>
+        )}
+
+        {isText && (
+          <>
             <div className="fe-group">
               <label className="fe-label">Content</label>
               {isNameField ? (
                 <div className="fe-dual-input">
-                  <input
-                    className="fe-input"
-                    type="text"
-                    placeholder="First Name"
-                    value={getValue('firstName')}
-                    onChange={e => onUpdateUserData('firstName', e.target.value)}
-                  />
-                  <input
-                    className="fe-input"
-                    type="text"
-                    placeholder="Last Name"
-                    value={getValue('lastName')}
-                    onChange={e => onUpdateUserData('lastName', e.target.value)}
-                  />
+                  <input type="text" placeholder="First Name" value={getValue('firstName')} onChange={e => onUpdateUserData('firstName', e.target.value)} />
+                  <input type="text" placeholder="Last Name" value={getValue('lastName')} onChange={e => onUpdateUserData('lastName', e.target.value)} />
                 </div>
               ) : (
-                <input
-                  className="fe-input"
-                  type="text"
-                  value={getValue(selectedSection.field)}
-                  onChange={e => onUpdateUserData(selectedSection.field, e.target.value)}
-                />
+                <input type="text" value={getValue(selectedSection.field)} onChange={e => onUpdateUserData(selectedSection.field, e.target.value)} />
               )}
             </div>
 
             <div className="fe-divider" />
-            <div className="fe-row">
-              <div className="fe-group">
-                <label className="fe-label">Size</label>
-                <div className="fe-stepper">
-                  <button className="fe-stepper-btn"
-                    onClick={() => onUpdateSection(selectedSection.id, { fontSize: Math.max(6, (selectedSection.fontSize || 12) - 1) })}>
-                    −
-                  </button>
-                  <span className="fe-stepper-val">{selectedSection.fontSize || 12}</span>
-                  <button className="fe-stepper-btn"
-                    onClick={() => onUpdateSection(selectedSection.id, { fontSize: (selectedSection.fontSize || 12) + 1 })}>
-                    +
-                  </button>
-                </div>
-              </div>
 
-              <div className="fe-group">
-                <label className="fe-label">Color</label>
-                <div className="fe-color-wrap">
-                  <input
-                    type="color"
-                    value={selectedSection.color || '#000000'}
-                    onChange={e => onUpdateSection(selectedSection.id, { color: e.target.value })}
-                  />
-                  <span className="fe-color-hex">{selectedSection.color || '#000000'}</span>
-                </div>
+            <div className="fe-group">
+              <label className="fe-label">Font Size (px)</label>
+              <div className="fe-stepper">
+                <button onClick={() => onUpdateSection(selectedSection.id, { fontSize: Math.max(6, (selectedSection.fontSize || 12) - 1) })}>−</button>
+                <span>{selectedSection.fontSize || 12}</span>
+                <button onClick={() => onUpdateSection(selectedSection.id, { fontSize: (selectedSection.fontSize || 12) + 1 })}>+</button>
               </div>
             </div>
 
             <div className="fe-group">
-              <label className="fe-label">Font</label>
-              <select
-                className="fe-select"
-                value={selectedSection.fontFamily || ''}
-                onChange={e => onUpdateSection(selectedSection.id, { fontFamily: e.target.value })}
-              >
-                {FONT_OPTIONS.map(f => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
+              <label className="fe-label">Color</label>
+              <input
+                type="color"
+                value={selectedSection.color || '#000000'}
+                onChange={e => onUpdateSection(selectedSection.id, { color: e.target.value })}
+              />
+            </div>
+
+            <div className="fe-group">
+              <label className="fe-label">Font Family</label>
+              <select value={selectedSection.fontFamily || ''} onChange={e => onUpdateSection(selectedSection.id, { fontFamily: e.target.value })}>
+                {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
-            </div>
-
-            <div className="fe-group">
-              <label className="fe-label">Style</label>
-              <div className="fe-toolbar">
-                <button
-                  className={`fe-tool-btn ${selectedSection.fontWeight === 'bold' ? 'active' : ''}`}
-                  onClick={() => onUpdateSection(selectedSection.id, {
-                    fontWeight: selectedSection.fontWeight === 'bold' ? 'normal' : 'bold'
-                  })}
-                ><b>B</b></button>
-
-                <button
-                  className={`fe-tool-btn ${selectedSection.fontStyle === 'italic' ? 'active' : ''}`}
-                  onClick={() => onUpdateSection(selectedSection.id, {
-                    fontStyle: selectedSection.fontStyle === 'italic' ? 'normal' : 'italic'
-                  })}
-                ><i>I</i></button>
-
-                <button
-                  className={`fe-tool-btn ${selectedSection.textDecoration === 'underline' ? 'active' : ''}`}
-                  onClick={() => onUpdateSection(selectedSection.id, {
-                    textDecoration: selectedSection.textDecoration === 'underline' ? 'none' : 'underline'
-                  })}
-                ><u>U</u></button>
-
-                <button
-                  className={`fe-tool-btn ${selectedSection.textTransform === 'uppercase' ? 'active' : ''}`}
-                  onClick={() => onUpdateSection(selectedSection.id, {
-                    textTransform: selectedSection.textTransform === 'uppercase' ? 'none' : 'uppercase'
-                  })}
-                >AA</button>
-              </div>
             </div>
           </>
         )}
+
       </div>
     </div>
   );
