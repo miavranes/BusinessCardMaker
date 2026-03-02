@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
+
+const DEBUG = false;
 import { useParams, useLocation } from 'react-router-dom';
 import { templates } from '../templates';
 import Canvas from '../components/Canvas';
@@ -26,6 +28,8 @@ export default function Editor() {
       baseData.firstName = parts[0] || '';
       baseData.lastName = parts.slice(1).join(' ') || '';
     }
+    // remove the raw "name" key – templates only use firstName/lastName
+    delete baseData.name;
     return baseData;
   });
 
@@ -77,11 +81,12 @@ export default function Editor() {
       : { elements: elementsBack,  setElements: setElementsBack  };
 
   const addElement = (el) => {
+    DEBUG && console.log('Editor.addElement called; activeCanvas=', activeCanvas);
     const { setElements } = getSetters(activeCanvas);
-    console.log('Adding element to', activeCanvas, 'canvas:', el);
+    DEBUG && console.log('Adding element to', activeCanvas, 'canvas:', el);
     setElements(prev => {
       const newElements = [...prev, el];
-      console.log('New elements array:', newElements);
+      DEBUG && console.log('New elements array:', newElements);
       return newElements;
     });
     setSelectedElement(el.id);

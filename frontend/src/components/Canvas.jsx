@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, forwardRef } from 'react';
 import '../css/Canvas.css';
 
+const DEBUG = false;
+
 const Canvas = forwardRef(({
   elements, selectedElement, setSelectedElement, onUpdateElement,
   backgroundColor, template, isBack, showPreview,
@@ -29,11 +31,24 @@ const Canvas = forwardRef(({
     return () => window.removeEventListener('resize', update);
   }, []);
 
+  // high-DPI canvas scaling so drawings look crisp and avoid blurriness while
+  // dragging. We set the backing store size to devicePixelRatio×CSS size and
+  // scale the context accordingly.
   useEffect(() => {
-    console.log('Canvas useEffect - elements:', elements.length, 'sections:', sections?.length, 'isBack:', isBack, 'template:', !!template);
+    const canvas = ref?.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = CANVAS_W * dpr;
+    canvas.height = CANVAS_H * dpr;
+    canvas.style.width = `${CANVAS_W}px`;
+    canvas.style.height = `${CANVAS_H}px`;
+    ctx.scale(dpr, dpr);
+  }, [ref]);
+
+  useEffect(() => {
     const canvas = ref?.current;
     if (!canvas) {
-      console.log('Canvas ref is null!');
       return;
     }
     const ctx = canvas.getContext('2d');
@@ -43,16 +58,20 @@ const Canvas = forwardRef(({
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
     
-    // Render text sections first (below elements)
+    // Render text sections first (below elements). When a layout component
+    // is active we let it render the template's built-in sections, therefore
+    // only draw custom sections that the user has added (ids start with
+    // "text-added"). This prevents double‑printing everything.
     if (sections && sections.length > 0) {
-      console.log('Rendering sections:', sections);
       sections.forEach(section => {
         if (section.type === 'text') {
+          // if there is a template layout, skip its default sections
+          if (template && !section.id.startsWith('text-added')) {
+            return;
+          }
           const content = section.field === 'name' 
             ? `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim()
             : userData?.[section.field] || '';
-          
-          console.log('Section:', section.id, 'field:', section.field, 'content:', content);
           
           if (content) {
             const textElement = {
@@ -78,8 +97,6 @@ const Canvas = forwardRef(({
               opacity: section.opacity ?? 1,
             };
             
-            console.log('Drawing text element:', textElement);
-            
             ctx.save();
             ctx.globalAlpha = textElement.opacity;
             drawText(ctx, textElement);
@@ -89,28 +106,40 @@ const Canvas = forwardRef(({
       });
     }
     
-    console.log('Drawing elements:', elements);
     elements.forEach(el => {
       ctx.save();
       ctx.globalAlpha = el.opacity ?? 1;
       
-      if (el.type === 'text') drawText(ctx, el);
-      else if (el.type === 'shape') drawShape(ctx, el);
-      else if (el.type === 'image') drawImage(ctx, el);
+      if (el.type === 'text') {
+        drawText(ctx, el);
+      } else if (el.type === 'shape') {
+        drawShape(ctx, el);
+      } else if (el.type === 'image') {
+        if (!el.imgElement) {
+          // silently skip
+        } else {
+          drawImage(ctx, el);
+        }
+      }
       
       ctx.restore();
       
       if (!showPreview && el.id === selectedElement) {
-        ctx.strokeStyle = '#6366f1';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
+        // draw the same highlight style used by section overlays (solid border
+        // + slight translucent fill) so that sections and elements look
+        // identical when selected.
         const b = getElementBounds(el);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(99,102,241,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.fillStyle = 'rgba(99,102,241,0.08)';
+        ctx.fillRect(b.x - 5, b.y - 5, b.width + 10, b.height + 10);
         ctx.strokeRect(b.x - 5, b.y - 5, b.width + 10, b.height + 10);
-        ctx.setLineDash([]);
+        ctx.restore();
 
-        // Draw resize handles
+        // Draw crisp resize handles
         const handleSize = 8;
-        ctx.fillStyle = '#6366f1';
+        ctx.fillStyle = 'rgba(99,102,241,1)';
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
 
@@ -281,6 +310,8 @@ const Canvas = forwardRef(({
     setSelectedElement(null);
   };
 
+  const dragThrottleRef = useRef({ last: 0, pending: null });
+
   const handleMouseMove = (e) => {
     if (showPreview) return;
 
@@ -318,8 +349,32 @@ const Canvas = forwardRef(({
 
     if (!dragging) return;
     const { x, y } = getMousePos(e);
-    onUpdateElement(dragging, { x: x - offset.x, y: y - offset.y });
+    const now = performance.now();
+    const coords = { x: x - offset.x, y: y - offset.y };
+
+    // throttle to ~60fps to reduce state churn
+    if (now - dragThrottleRef.current.last > 16) {
+      onUpdateElement(dragging, coords);
+      dragThrottleRef.current.last = now;
+    } else {
+      dragThrottleRef.current.pending = coords;
+    }
   };
+
+  // flush pending drag position on animation frame
+  useEffect(() => {
+    let anim;
+    const tick = () => {
+      if (dragThrottleRef.current.pending && dragging) {
+        onUpdateElement(dragging, dragThrottleRef.current.pending);
+        dragThrottleRef.current.last = performance.now();
+        dragThrottleRef.current.pending = null;
+      }
+      anim = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(anim);
+  }, [dragging]);
 
   const handleMouseUp = () => {
     setDragging(null);
@@ -436,7 +491,7 @@ const Canvas = forwardRef(({
           className={`canvas-element ${showPreview ? '' : 'draggable'}`}
           style={{
             position: 'relative',
-            zIndex: 1,
+            zIndex: 2,           // bring canvas above layout so added elements are visible
             background: template ? 'transparent' : backgroundColor,
             cursor: resizing ? `${resizing.corner}-resize` : (dragging ? 'grabbing' : 'default'),
           }}
@@ -446,11 +501,12 @@ const Canvas = forwardRef(({
           <div style={{
             position: 'absolute', top: 0, left: 0,
             width: '100%', height: '100%',
-            zIndex: 2,
-            pointerEvents: showPreview ? 'none' : 'auto',
+            zIndex: 1,          // put layout below canvas
+            pointerEvents: 'none', // make layout non‑interactive, overlays handle clicks
           }}
             onMouseDown={e => e.stopPropagation()}
           >
+            {console.log('Rendering layout component, canvas z-index is now higher')}
             <LayoutComponent
               template={template}
               isBack={isBack}

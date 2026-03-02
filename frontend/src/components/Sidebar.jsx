@@ -104,6 +104,8 @@ function svgFromButton(buttonEl) {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
 }
 
+const DEBUG = false;
+
 export default function Sidebar({
   elements, selectedElement,
   activeCanvas, onSetActiveCanvas,
@@ -118,37 +120,54 @@ export default function Sidebar({
   const addIcon = (e) => {
     const dataUrl = svgFromButton(e.currentTarget);
     if (!dataUrl) {
-      console.error('Could not extract SVG from button');
+      DEBUG && console.error('Could not extract SVG from button');
+      // fallback: try taking the innerHTML of the button (should contain svg)
+      const html = e.currentTarget.innerHTML;
+      const match = html.match(/<svg[\s\S]*<\/svg>/i);
+      if (match) {
+        const fallback = 'data:image/svg+xml;charset=utf-8,' +
+          encodeURIComponent(match[0]);
+        DEBUG && console.warn('using fallback svg data URL');
+        return addIcon({ currentTarget: { querySelector: () => {
+          const tmp = document.createElement('div');
+          tmp.innerHTML = match[0];
+          return tmp.firstChild;
+        } } });
+      }
       return;
     }
-    console.log('Creating icon with dataUrl:', dataUrl.substring(0, 100) + '...');
+    DEBUG && console.log('Creating icon with dataUrl:', dataUrl.substring(0, 100) + '...');
     const img = new window.Image();
     img.onload = () => {
-      console.log('Image loaded successfully, adding element');
+      DEBUG && console.log('Image loaded successfully, adding element');
+      // center element inside 580×330 canvas (same size used in Canvas.jsx)
+      const W = 60;
+      const H = 60;
       const newElement = {
         id: `icon-${Date.now()}`,
         type: 'image',
-        x: 50, y: 50,
-        width: 60, height: 60,
+        x: (580 - W) / 2,
+        y: (330 - H) / 2,
+        width: W, height: H,
         imgElement: img,
         src: dataUrl,
         opacity: 1,
       };
-      console.log('Calling onAddElement with:', newElement);
+      DEBUG && console.log('Calling onAddElement with:', newElement);
       onAddElement(newElement);
     };
-    img.onerror = (e) => console.error('img failed to load SVG data URL', e);
+    img.onerror = (e) => DEBUG && console.error('img failed to load SVG data URL', e);
     img.src = dataUrl;
   };
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    console.log('Uploading image:', file.name);
+    DEBUG && console.log('Uploading image:', file.name);
     const url = URL.createObjectURL(file);
     const img = new window.Image();
     img.onload = () => {
-      console.log('Image loaded, dimensions:', img.naturalWidth, 'x', img.naturalHeight);
+      DEBUG && console.log('Image loaded, dimensions:', img.naturalWidth, 'x', img.naturalHeight);
       const maxW = 180;
       const ratio = img.naturalHeight / img.naturalWidth;
       const w = Math.min(maxW, img.naturalWidth);
@@ -263,7 +282,7 @@ export default function Sidebar({
       <div className="sb-upload-section">
         <p className="sb-section-title" style={{ padding: '0 16px' }}>Text</p>
         <button className="sb-upload-btn" onClick={() => {
-          console.log('Add Text button clicked!');
+          DEBUG && console.log('Add Text button clicked!');
           onAddTextSection();
         }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
