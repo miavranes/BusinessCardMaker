@@ -20,11 +20,11 @@
 
 ## 3. Napredne Opcije za Tekst
 
-- [ ] Dodati underline opciju
-- [ ] Implementirati poravnanje teksta (left, center, right)
+- [x] Dodati underline opciju
+- [x] Implementirati poravnanje teksta (left, center, right)
 - [ ] Dodati bullet liste
-- [ ] Implementirati text shadow efekat
-- [ ] Dodati text stroke/outline
+- [x] Implementirati text shadow efekat
+- [x] Dodati text stroke/outline
 - [ ] Implementirati zakrivljeni tekst (curve text)
 
 ## 4. Slike i Logotipi

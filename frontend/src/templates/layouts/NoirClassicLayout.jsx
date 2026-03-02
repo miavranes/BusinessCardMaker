@@ -1,5 +1,6 @@
 import React from 'react';
 import logoIcon from '../../assets/logo.png';
+import { getSectionTextStyle } from '../../sectionSchema';
 
 export const noirClassicTemplate = {
   id: 2,
@@ -60,17 +61,12 @@ export default function NoirClassicLayout({
 
   const getSectionStyle = (id, fallbackColor, fallbackFontSize) => {
     const s = sections.find(sec => sec.id === id);
-    if (!s) return { color: fallbackColor };
-
     return {
-      color: s.color || fallbackColor,
-      fontFamily: s.fontFamily || t.fontBody,
-      fontSize: s.fontSize ? `${s.fontSize * scale}px` : `${fallbackFontSize * scale}px`,
-      fontWeight: s.fontWeight,
-      fontStyle: s.fontStyle,
-      textTransform: s.textTransform || 'none',
-      textDecoration: s.textDecoration || 'none',
-      letterSpacing: s.letterSpacing ? `${s.letterSpacing * scale}em` : undefined,
+      ...getSectionTextStyle(s, scale, {
+        color: fallbackColor,
+        fontFamily: t.fontBody,
+        fontSize: `${fallbackFontSize * scale}px`,
+      }),
       cursor: 'pointer',
       transition: 'all 0.2s ease',
     };

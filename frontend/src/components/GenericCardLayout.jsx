@@ -200,11 +200,19 @@ function SectionDiv({ section, data, scale, isSelected, isOverlay, showPreview, 
               fontWeight: section.fontWeight ?? 'normal',
               fontStyle: section.fontStyle ?? 'normal',
               color: section.color ?? '#000',
-              textAlign: section.align ?? 'left',
+              textAlign: section.textAlign ?? 'left',
               letterSpacing: `${section.letterSpacing ?? 0}em`,
               lineHeight: section.lineHeight ?? 1,
               opacity: section.opacity ?? 1,
               textTransform: section.textTransform ?? 'none',
+              textDecoration: section.textDecoration ?? 'none',
+              textShadow: section.textShadowBlur > 0 
+                ? `2px 2px ${section.textShadowBlur}px ${section.textShadowColor || '#000000'}`
+                : 'none',
+              WebkitTextStroke: section.textStrokeWidth > 0
+                ? `${section.textStrokeWidth}px ${section.textStrokeColor || '#000000'}`
+                : 'none',
+              paintOrder: 'stroke fill',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
               width: '100%',

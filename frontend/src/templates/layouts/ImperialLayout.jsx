@@ -1,6 +1,7 @@
 import React from 'react';
 import logoIcon from '../../assets/logo.png';
 import qrCode from '../../assets/qr.svg';
+import { getSectionTextStyle } from '../../sectionSchema';
 
 export const imperialTemplate = {
   id: 7,

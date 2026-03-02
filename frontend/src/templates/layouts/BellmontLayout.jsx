@@ -1,5 +1,6 @@
 import React from 'react';
 import logoIcon from '../../assets/logo.png';
+import { getSectionTextStyle } from '../../sectionSchema';
 
 export const bellmontTemplate = {
   id: 6,

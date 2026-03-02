@@ -11,6 +11,8 @@ const Canvas = forwardRef(({
   const [dragging, setDragging] = useState(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [containerWidth, setContainerWidth] = useState(400);
+  const [resizing, setResizing] = useState(null);
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
   const CANVAS_W = 580;
   const CANVAS_H = 330;
@@ -46,18 +48,86 @@ const Canvas = forwardRef(({
         const b = getElementBounds(el);
         ctx.strokeRect(b.x - 5, b.y - 5, b.width + 10, b.height + 10);
         ctx.setLineDash([]);
+
+        // Draw resize handles
+        const handleSize = 8;
+        ctx.fillStyle = '#6366f1';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+
+        const corners = [
+          { x: b.x - 5, y: b.y - 5 },             // nw
+          { x: b.x + b.width + 5, y: b.y - 5 },   // ne
+          { x: b.x - 5, y: b.y + b.height + 5 },  // sw
+          { x: b.x + b.width + 5, y: b.y + b.height + 5 }, // se
+        ];
+
+        corners.forEach(corner => {
+          ctx.beginPath();
+          ctx.arc(corner.x, corner.y, handleSize / 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
       }
     });
   };
 
   const drawText = (ctx, el) => {
+    ctx.save();
     ctx.font = `${el.fontStyle || 'normal'} ${el.fontWeight || 'normal'} ${el.fontSize}px ${el.fontFamily}`;
-    ctx.fillStyle = el.color;
-    ctx.textAlign = el.align || 'left';
+    ctx.textAlign = 'left'; // always use left; we handle alignment manually below
     ctx.textBaseline = 'top';
+
+    if (el.textShadowBlur > 0) {
+      ctx.shadowBlur = el.textShadowBlur;
+      ctx.shadowColor = el.textShadowColor || '#000000';
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+    }
+
+    ctx.fillStyle = el.color;
+
     const lines = el.content.split('\n');
     const lh = el.fontSize * (el.lineHeight || 1.2);
-    lines.forEach((line, i) => { ctx.fillText(line, el.x, el.y + i * lh); });
+
+    // Measure max line width so we can anchor alignment to el.x (left edge)
+    let maxW = 0;
+    lines.forEach(line => { maxW = Math.max(maxW, ctx.measureText(line).width); });
+
+    lines.forEach((line, i) => {
+      const lineW = ctx.measureText(line).width;
+      let drawX = el.x;
+
+      if (el.textAlign === 'center') {
+        drawX = el.x + (maxW - lineW) / 2;
+      } else if (el.textAlign === 'right') {
+        drawX = el.x + maxW - lineW;
+      }
+
+      const yPos = el.y + i * lh;
+
+      // Draw stroke first (if enabled)
+      if (el.textStrokeWidth > 0) {
+        ctx.strokeStyle = el.textStrokeColor || '#000000';
+        ctx.lineWidth = el.textStrokeWidth;
+        ctx.strokeText(line, drawX, yPos);
+      }
+
+      ctx.fillText(line, drawX, yPos);
+
+      if (el.textDecoration === 'underline') {
+        const underlineY = yPos + el.fontSize + 2;
+
+        ctx.beginPath();
+        ctx.strokeStyle = el.color;
+        ctx.lineWidth = Math.max(1, el.fontSize / 12);
+        ctx.moveTo(drawX, underlineY);
+        ctx.lineTo(drawX + lineW, underlineY);
+        ctx.stroke();
+      }
+    });
+
+    ctx.restore();
   };
 
   const drawShape = (ctx, el) => {
@@ -96,6 +166,7 @@ const Canvas = forwardRef(({
       const lh = el.fontSize * (el.lineHeight || 1.2);
       let maxW = 0;
       lines.forEach(line => { maxW = Math.max(maxW, ctx.measureText(line).width); });
+      // el.x is always the left edge regardless of textAlign
       return { x: el.x, y: el.y, width: maxW, height: lines.length * lh };
     }
     return { x: el.x, y: el.y, width: el.width, height: el.height };
@@ -112,6 +183,32 @@ const Canvas = forwardRef(({
   const handleMouseDown = (e) => {
     if (showPreview) return;
     const { x, y } = getMousePos(e);
+
+    // Check if clicking on resize handle first
+    if (selectedElement) {
+      const el = elements.find(e => e.id === selectedElement);
+      if (el) {
+        const b = getElementBounds(el);
+        const handleSize = 8;
+        const corners = [
+          { name: 'nw', x: b.x - 5, y: b.y - 5 },
+          { name: 'ne', x: b.x + b.width + 5, y: b.y - 5 },
+          { name: 'sw', x: b.x - 5, y: b.y + b.height + 5 },
+          { name: 'se', x: b.x + b.width + 5, y: b.y + b.height + 5 },
+        ];
+
+        for (const corner of corners) {
+          const dist = Math.sqrt((x - corner.x) ** 2 + (y - corner.y) ** 2);
+          if (dist <= handleSize) {
+            setResizing({ id: el.id, corner: corner.name });
+            setResizeStart({ x: el.x, y: el.y, width: el.width || b.width, height: el.height || b.height, mouseX: x, mouseY: y });
+            return;
+          }
+        }
+      }
+    }
+
+    // Otherwise check for element selection
     for (let i = elements.length - 1; i >= 0; i--) {
       const el = elements[i];
       const b = getElementBounds(el);
@@ -126,12 +223,49 @@ const Canvas = forwardRef(({
   };
 
   const handleMouseMove = (e) => {
-    if (!dragging || showPreview) return;
+    if (showPreview) return;
+
+    if (resizing) {
+      const { x, y } = getMousePos(e);
+      const el = elements.find(e => e.id === resizing.id);
+      if (!el) return;
+
+      const dx = x - resizeStart.mouseX;
+      const dy = y - resizeStart.mouseY;
+
+      let newX = resizeStart.x;
+      let newY = resizeStart.y;
+      let newWidth = resizeStart.width;
+      let newHeight = resizeStart.height;
+
+      if (resizing.corner.includes('e')) {
+        newWidth = Math.max(20, resizeStart.width + dx);
+      }
+      if (resizing.corner.includes('w')) {
+        newWidth = Math.max(20, resizeStart.width - dx);
+        newX = resizeStart.x + (resizeStart.width - newWidth);
+      }
+      if (resizing.corner.includes('s')) {
+        newHeight = Math.max(20, resizeStart.height + dy);
+      }
+      if (resizing.corner.includes('n')) {
+        newHeight = Math.max(20, resizeStart.height - dy);
+        newY = resizeStart.y + (resizeStart.height - newHeight);
+      }
+
+      onUpdateElement(resizing.id, { x: newX, y: newY, width: newWidth, height: newHeight });
+      return;
+    }
+
+    if (!dragging) return;
     const { x, y } = getMousePos(e);
     onUpdateElement(dragging, { x: x - offset.x, y: y - offset.y });
   };
 
-  const handleMouseUp = () => { setDragging(null); };
+  const handleMouseUp = () => {
+    setDragging(null);
+    setResizing(null);
+  };
 
   const sectionDragRef = useRef(null);
 
@@ -170,13 +304,69 @@ const Canvas = forwardRef(({
     window.addEventListener('mouseup', onUp);
   };
 
+  const handleResizeMouseDown = (e, section, corner) => {
+    e.stopPropagation();
+
+    const wrapperRect = containerRef.current.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startSectionX = section.x;
+    const startSectionY = section.y;
+    const startWidth = section.width;
+    const startHeight = section.height;
+
+    const onMove = (moveEvent) => {
+      const dx = (moveEvent.clientX - startX) / wrapperRect.width;
+      const dy = (moveEvent.clientY - startY) / wrapperRect.height;
+
+      let newX = startSectionX;
+      let newY = startSectionY;
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+
+      if (corner.includes('e')) {
+        newWidth = Math.max(0.05, Math.min(1 - startSectionX, startWidth + dx));
+      }
+      if (corner.includes('w')) {
+        const maxDx = startWidth - 0.05;
+        const constrainedDx = Math.max(-startSectionX, Math.min(maxDx, dx));
+        newX = startSectionX + constrainedDx;
+        newWidth = startWidth - constrainedDx;
+      }
+      if (corner.includes('s')) {
+        newHeight = Math.max(0.05, Math.min(1 - startSectionY, startHeight + dy));
+      }
+      if (corner.includes('n')) {
+        const maxDy = startHeight - 0.05;
+        const constrainedDy = Math.max(-startSectionY, Math.min(maxDy, dy));
+        newY = startSectionY + constrainedDy;
+        newHeight = startHeight - constrainedDy;
+      }
+
+      onUpdateSection(section.id, {
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight,
+      });
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
   const LayoutComponent = template?.layoutComponent;
 
   return (
     <div ref={containerRef} className="canvas-container">
       <div className="canvas-wrapper" style={{ position: 'relative' }}>
 
-       {LayoutComponent && (
+        {LayoutComponent && (
           <div style={{
             position: 'absolute', top: 0, left: 0,
             width: '100%', height: '100%',
@@ -199,7 +389,7 @@ const Canvas = forwardRef(({
           </div>
         )}
 
-       {!showPreview && sections && sections.map(section => {
+        {!showPreview && sections && sections.map(section => {
           const isSelected = selectedSection?.id === section.id;
           return (
             <div
@@ -223,9 +413,36 @@ const Canvas = forwardRef(({
                   : 'transparent',
                 transition: 'border-color 0.15s, background 0.15s',
               }}
-            />
+            >
+              {isSelected && (
+                <>
+                  {['nw', 'ne', 'sw', 'se'].map(corner => (
+                    <div
+                      key={corner}
+                      onMouseDown={e => handleResizeMouseDown(e, section, corner)}
+                      className={`resize-handle resize-${corner}`}
+                      style={{
+                        position: 'absolute',
+                        width: '10px',
+                        height: '10px',
+                        background: '#6366f1',
+                        border: '2px solid white',
+                        borderRadius: '50%',
+                        cursor: `${corner}-resize`,
+                        zIndex: 20,
+                        ...(corner === 'nw' && { top: '-5px', left: '-5px' }),
+                        ...(corner === 'ne' && { top: '-5px', right: '-5px' }),
+                        ...(corner === 'sw' && { bottom: '-5px', left: '-5px' }),
+                        ...(corner === 'se' && { bottom: '-5px', right: '-5px' }),
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+            </div>
           );
         })}
+
         <canvas
           ref={ref}
           width={CANVAS_W}
@@ -239,6 +456,7 @@ const Canvas = forwardRef(({
             position: 'relative',
             zIndex: 1,
             background: template ? 'transparent' : backgroundColor,
+            cursor: resizing ? `${resizing.corner}-resize` : (dragging ? 'grabbing' : 'default'),
           }}
         />
       </div>

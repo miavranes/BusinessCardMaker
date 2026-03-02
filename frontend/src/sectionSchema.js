@@ -66,7 +66,7 @@ export function resolveSection(section, template) {
     fontWeight:    section.fontWeight    ?? template.defaultFontWeight    ?? 'normal',
     fontStyle:     section.fontStyle     ?? 'normal',
     color:         section.color         ?? template.defaultColor         ?? '#000000',
-    align:         section.align         ?? template.defaultAlign         ?? 'left',
+    textAlign:     section.textAlign     ?? template.defaultTextAlign     ?? 'left',
     letterSpacing: section.letterSpacing ?? template.defaultLetterSpacing ?? 0,
     lineHeight:    section.lineHeight    ?? 1.3,
     opacity:       section.opacity       ?? 1,
@@ -161,5 +161,40 @@ export function getSectionPos(sections, id) {
     width:  `${s.width * 100}%`,
     height: `${s.height * 100}%`,
     boxSizing: 'border-box',
+  };
+}
+
+function textAlignToJustifyContent(textAlign) {
+  switch (textAlign) {
+    case 'center': return 'center';
+    case 'right':  return 'flex-end';
+    default:       return 'flex-start';
+  }
+}
+
+export function getSectionTextStyle(section, scale = 1, fallbacks = {}) {
+  if (!section) return fallbacks;
+
+  const textAlign = section.textAlign ?? fallbacks.textAlign ?? 'left';
+
+  return {
+    color: section.color ?? fallbacks.color,
+    fontFamily: section.fontFamily ?? fallbacks.fontFamily,
+    fontSize: section.fontSize ? `${section.fontSize * scale}px` : fallbacks.fontSize,
+    fontWeight: section.fontWeight ?? fallbacks.fontWeight ?? 'normal',
+    fontStyle: section.fontStyle ?? fallbacks.fontStyle ?? 'normal',
+    textAlign,
+    justifyContent: textAlignToJustifyContent(textAlign),
+    textTransform: section.textTransform ?? fallbacks.textTransform ?? 'none',
+    textDecoration: section.textDecoration ?? fallbacks.textDecoration ?? 'none',
+    letterSpacing: section.letterSpacing ? `${section.letterSpacing}em` : fallbacks.letterSpacing,
+    lineHeight: section.lineHeight ?? fallbacks.lineHeight ?? 1.2,
+    textShadow: section.textShadowBlur > 0
+      ? `2px 2px ${section.textShadowBlur}px ${section.textShadowColor || '#000000'}`
+      : 'none',
+    WebkitTextStroke: section.textStrokeWidth > 0
+      ? `${section.textStrokeWidth}px ${section.textStrokeColor || '#000000'}`
+      : 'none',
+    paintOrder: 'stroke fill',
   };
 }

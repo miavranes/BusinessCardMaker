@@ -1,6 +1,6 @@
 import logo from '../../assets/logo.png';
 import qrCode from '../../assets/qr.svg';
-import { getSectionPos } from '../../sectionSchema';
+import { getSectionPos, getSectionTextStyle } from '../../sectionSchema';
 
 export const virelliTemplate = {
   id: 3,
@@ -48,19 +48,9 @@ export default function VirelliLayout({ template, isBack = false, containerWidth
 
   const getSectionStyle = (id) => {
     const s = sections.find(sec => sec.id === id);
-    if (!s) return {};
     return {
-      color: s.color,
-      fontFamily: s.fontFamily,
-      fontSize: s.fontSize ? `${s.fontSize * scale}px` : undefined,
-      fontWeight: s.fontWeight,
-      fontStyle: s.fontStyle,
-      letterSpacing: s.letterSpacing ? `${s.letterSpacing}em` : undefined,
-      textTransform: s.textTransform || 'none',
-      textDecoration: s.textDecoration || 'none',
-      textAlign: s.align || 'left',
+      ...getSectionTextStyle(s, scale),
       cursor: 'pointer',
-      lineHeight: 1.2,
     };
   };
 

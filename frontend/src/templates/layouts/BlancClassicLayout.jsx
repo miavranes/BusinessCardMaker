@@ -1,6 +1,6 @@
 import React from 'react';
 import logoIcon from '../../assets/logo.png';
-import { getSectionPos } from '../../sectionSchema';
+import { getSectionPos, getSectionTextStyle } from '../../sectionSchema';
 
 export const blancClassicTemplate = {
   id: 1,
@@ -53,17 +53,11 @@ export default function BlancClassicLayout({ template, isBack = false, container
 
   const getSectionStyle = (id) => {
     const s = sections.find(sec => sec.id === id);
-    if (!s) return {};
     return {
-      color: s.color || t.text,
-      fontFamily: s.fontFamily || t.fontName,
-      fontSize: `${(s.fontSize || 12) * scale}px`,
-      fontWeight: s.fontWeight || 'normal',
-      fontStyle: s.fontStyle || 'normal',
-      textTransform: s.textTransform || 'none',
-      textDecoration: s.textDecoration || 'none',
-      letterSpacing: s.letterSpacing ? `${s.letterSpacing}em` : 'normal',
-      lineHeight: 1.1,
+      ...getSectionTextStyle(s, scale, {
+        color: t.text,
+        fontFamily: t.fontName,
+      }),
       cursor: 'pointer',
     };
   };
