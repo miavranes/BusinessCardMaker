@@ -506,7 +506,7 @@ const Canvas = forwardRef(({
           }}
             onMouseDown={e => e.stopPropagation()}
           >
-            {console.log('Rendering layout component, canvas z-index is now higher')}
+            {/* layout rendered below canvas */}
             <LayoutComponent
               template={template}
               isBack={isBack}

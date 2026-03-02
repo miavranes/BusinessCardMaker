@@ -34,10 +34,10 @@ export default function Editor() {
   });
 
   const updateUserData = (field, value) => {
-    console.log('updateUserData called:', field, '=', value);
+    DEBUG && console.log('updateUserData called:', field, '=', value);
     setUserData(prev => {
       const updated = { ...prev, [field]: value };
-      console.log('Updated userData:', updated);
+      DEBUG && console.log('Updated userData:', updated);
       return updated;
     });
   };
@@ -153,18 +153,18 @@ export default function Editor() {
       opacity: 1,
     };
 
-    console.log('Adding text section to', activeCanvas, ':', newSection);
+    DEBUG && console.log('Adding text section to', activeCanvas, ':', newSection);
 
     if (activeCanvas === 'front') {
       setSectionsFront(prev => {
         const updated = [...prev, newSection];
-        console.log('Updated sectionsFront:', updated);
+        DEBUG && console.log('Updated sectionsFront:', updated);
         return updated;
       });
     } else {
       setSectionsBack(prev => {
         const updated = [...prev, newSection];
-        console.log('Updated sectionsBack:', updated);
+        DEBUG && console.log('Updated sectionsBack:', updated);
         return updated;
       });
     }

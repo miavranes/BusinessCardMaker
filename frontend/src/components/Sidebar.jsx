@@ -178,7 +178,7 @@ export default function Sidebar({
         width: w, height: w * ratio,
         imgElement: img, src: url, opacity: 1,
       };
-      console.log('Calling onAddElement with:', newElement);
+      DEBUG && console.log('Calling onAddElement with:', newElement);
       onAddElement(newElement);
     };
     img.src = url;

@@ -148,7 +148,7 @@ export default function FloatingEditor({
                   rows="2"
                   value={getValue(selectedSection.field)} 
                   onChange={e => {
-                    console.log('Updating field:', selectedSection.field, 'with value:', e.target.value);
+                    DEBUG && console.log('Updating field:', selectedSection.field, 'with value:', e.target.value);
                     onUpdateUserData(selectedSection.field, e.target.value);
                   }}
                   onKeyDown={e => {
