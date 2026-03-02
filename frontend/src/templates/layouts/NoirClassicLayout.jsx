@@ -1,6 +1,6 @@
 import React from 'react';
 import logoIcon from '../../assets/logo.png';
-import { getSectionTextStyle } from '../../sectionSchema';
+import { getSectionPos, getSectionTextStyle } from '../../sectionSchema';
 
 export const noirClassicTemplate = {
   id: 2,
@@ -23,17 +23,17 @@ export const noirClassicTemplate = {
     website: "www.miavranes.com",
   },
   sectionsFront: [
-    { id: 'front-logo',  type: 'logo', label: 'Logo' },
-    { id: 'front-name',  type: 'text', field: 'name',  label: 'Name',  fontSize: 14, fontFamily: 'Montserrat, sans-serif', fontWeight: '400', color: '#111111', textTransform: 'uppercase' },
-    { id: 'front-title', type: 'text', field: 'title', label: 'Title', fontSize: 9, fontFamily: 'Montserrat, sans-serif', color: '#C4A574', textTransform: 'uppercase' },
+    { id: 'front-logo',  type: 'logo', label: 'Logo', x: 0.35, y: 0.20, width: 0.30, height: 0.30 },
+    { id: 'front-name',  type: 'text', field: 'name',  label: 'Name',  x: 0.10, y: 0.55, width: 0.80, height: 0.15, fontSize: 14, fontFamily: 'Montserrat, sans-serif', fontWeight: '400', color: '#111111', textTransform: 'uppercase' },
+    { id: 'front-title', type: 'text', field: 'title', label: 'Title', x: 0.10, y: 0.72, width: 0.80, height: 0.10, fontSize: 9, fontFamily: 'Montserrat, sans-serif', color: '#C4A574', textTransform: 'uppercase' },
   ],
   sectionsBack: [
-    { id: 'back-logo',    type: 'logo', label: 'Logo' },
-    { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    fontSize: 32, fontFamily: 'Montserrat, sans-serif', fontWeight: '300', color: '#ffffff' },
-    { id: 'back-title',   type: 'text', field: 'title',   label: 'Title',   fontSize: 11, fontFamily: 'Montserrat, sans-serif', color: '#C4A574', textTransform: 'uppercase' },
-    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   fontSize: 10, color: '#ffffff' },
-    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   fontSize: 10, color: '#ffffff' },
-    { id: 'back-website', type: 'text', field: 'website', label: 'Website', fontSize: 10, color: '#ffffff' },
+    { id: 'back-logo',    type: 'logo', label: 'Logo', x: 0.70, y: 0.08, width: 0.25, height: 0.20 },
+    { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    x: 0.08, y: 0.30, width: 0.60, height: 0.20, fontSize: 32, fontFamily: 'Montserrat, sans-serif', fontWeight: '300', color: '#ffffff' },
+    { id: 'back-title',   type: 'text', field: 'title',   label: 'Title',   x: 0.08, y: 0.52, width: 0.60, height: 0.10, fontSize: 11, fontFamily: 'Montserrat, sans-serif', color: '#C4A574', textTransform: 'uppercase' },
+    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   x: 0.08, y: 0.68, width: 0.60, height: 0.08, fontSize: 10, color: '#ffffff' },
+    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   x: 0.08, y: 0.78, width: 0.60, height: 0.08, fontSize: 10, color: '#ffffff' },
+    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.08, y: 0.88, width: 0.60, height: 0.08, fontSize: 10, color: '#ffffff' },
   ],
 };
 
@@ -87,71 +87,90 @@ export default function NoirClassicLayout({
   };
 
   if (isBack) {
+    const backLogoSection = sections.find(s => s.id === 'back-logo');
+    
     return (
-      <div style={{ ...baseStyle, background: t.bgBack, flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: `${40 * scale}px`, boxSizing: 'border-box' }}>
-        <div style={{ position: 'absolute', top: `${30 * scale}px`, right: `${30 * scale}px` }}>
+      <div style={{ ...baseStyle, background: t.bgBack, position: "relative", boxSizing: 'border-box' }}>
+        {backLogoSection && (
           <img 
             src={data.logoUrl || logoIcon} 
             alt="Logo" 
-            style={{ height: `${50 * scale}px`, width: 'auto', filter: 'brightness(0) invert(1)', cursor: 'pointer' }} 
+            style={{ ...getSectionPos(sections, 'back-logo'), objectFit: 'contain', filter: 'brightness(0) invert(1)', cursor: 'pointer' }} 
             onClick={(e) => handleItemClick(e, 'logo')}
           />
-        </div>
+        )}
         
-        <div 
-          onClick={(e) => handleItemClick(e, 'name')}
-          style={{ ...getSectionStyle('back-name', t.textBack, 32), letterSpacing: '0.05em', lineHeight: 1.2 }}
-        >
-          {data.firstName}<br/>{data.lastName}
-        </div>
+        {sections.find(s => s.id === 'back-name') && (
+          <div 
+            onClick={(e) => handleItemClick(e, 'name')}
+            style={{ ...getSectionPos(sections, 'back-name'), ...getSectionStyle('back-name', t.textBack, 32), letterSpacing: '0.05em', lineHeight: 1.2, display: 'flex', alignItems: 'center' }}
+          >
+            {data.firstName}<br/>{data.lastName}
+          </div>
+        )}
         
-        <div 
-          onClick={(e) => handleItemClick(e, 'title')}
-          style={{ ...getSectionStyle('back-title', t.textMuted, 11), letterSpacing: '0.25em', marginTop: `${5 * scale}px` }}
-        >
-          {data.title}
-        </div>
+        {sections.find(s => s.id === 'back-title') && (
+          <div 
+            onClick={(e) => handleItemClick(e, 'title')}
+            style={{ ...getSectionPos(sections, 'back-title'), ...getSectionStyle('back-title', t.textMuted, 11), letterSpacing: '0.25em', display: 'flex', alignItems: 'center' }}
+          >
+            {data.title}
+          </div>
+        )}
 
-        <div style={{ marginTop: `${15 * scale}px`, display: "flex", flexDirection: "column", gap: `${10 * scale}px` }}>
-          {[
-            { id: 'phone', Icon: PhoneIcon, text: data.phone },
-            { id: 'email', Icon: MailIcon, text: data.email },
-            { id: 'website', Icon: WebIcon, text: data.website }
-          ].map((item) => (
+        {[
+          { id: 'back-phone', Icon: PhoneIcon, text: data.phone },
+          { id: 'back-email', Icon: MailIcon, text: data.email },
+          { id: 'back-website', Icon: WebIcon, text: data.website }
+        ].map((item) => {
+          const section = sections.find(s => s.id === item.id);
+          if (!section) return null;
+          
+          return (
             <div 
               key={item.id} 
-              onClick={(e) => handleItemClick(e, item.id)}
-              style={{ display: "flex", alignItems: "center", gap: `${8 * scale}px`, ...getSectionStyle(`back-${item.id}`, t.textBack, 10), fontWeight: 300 }}
+              onClick={(e) => handleItemClick(e, item.id.replace('back-', ''))}
+              style={{ ...getSectionPos(sections, item.id), display: "flex", alignItems: "center", gap: `${8 * scale}px`, ...getSectionStyle(item.id, t.textBack, 10), fontWeight: 300 }}
             >
               <item.Icon color={t.textMuted} size={12 * scale} />
               <span>{item.text}</span>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     );
   }
 
+  const frontLogoSection = sections.find(s => s.id === 'front-logo');
+
   return (
-    <div style={{ ...baseStyle, background: t.bg, flexDirection: "column", justifyContent: "center", alignItems: "center", padding: `${50 * scale}px`, boxSizing: 'border-box' }}>
-      <img 
-        src={data.logoUrl || logoIcon} 
-        alt="Logo" 
-        style={{ height: `${70 * scale}px`, width: 'auto', marginBottom: `${25 * scale}px`, cursor: 'pointer' }} 
-        onClick={(e) => handleItemClick(e, 'logo')}
-      />
-      <div 
-        onClick={(e) => handleItemClick(e, 'name')}
-        style={{ ...getSectionStyle('front-name', t.text, 14), letterSpacing: '0.15em', textAlign: "center" }}
-      >
-        {data.firstName} {data.lastName}
-      </div>
-      <div 
-        onClick={(e) => handleItemClick(e, 'title')}
-        style={{ ...getSectionStyle('front-title', t.textMuted, 9), letterSpacing: '0.2em', textAlign: "center", marginTop: `${5 * scale}px` }}
-      >
-        {data.title}
-      </div>
+    <div style={{ ...baseStyle, background: t.bg, position: "relative", boxSizing: 'border-box' }}>
+      {frontLogoSection && (
+        <img 
+          src={data.logoUrl || logoIcon} 
+          alt="Logo" 
+          style={{ ...getSectionPos(sections, 'front-logo'), objectFit: 'contain', cursor: 'pointer' }} 
+          onClick={(e) => handleItemClick(e, 'logo')}
+        />
+      )}
+      
+      {sections.find(s => s.id === 'front-name') && (
+        <div 
+          onClick={(e) => handleItemClick(e, 'name')}
+          style={{ ...getSectionPos(sections, 'front-name'), ...getSectionStyle('front-name', t.text, 14), letterSpacing: '0.15em', textAlign: "center", display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          {data.firstName} {data.lastName}
+        </div>
+      )}
+      
+      {sections.find(s => s.id === 'front-title') && (
+        <div 
+          onClick={(e) => handleItemClick(e, 'title')}
+          style={{ ...getSectionPos(sections, 'front-title'), ...getSectionStyle('front-title', t.textMuted, 9), letterSpacing: '0.2em', textAlign: "center", display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          {data.title}
+        </div>
+      )}
     </div>
   );
 }

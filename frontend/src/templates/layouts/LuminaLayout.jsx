@@ -1,6 +1,6 @@
 import React from 'react';
 import logoIcon from '../../assets/logo.png';
-import { getSectionTextStyle } from '../../sectionSchema';
+import { getSectionPos, getSectionTextStyle } from '../../sectionSchema';
 
 export const luminaTemplate = {
   id: 8,
@@ -27,18 +27,18 @@ export const luminaTemplate = {
     facebook: "Facebook: Mia Vranes",
   },
   sectionsFront: [
-    { id: 'front-name', type: 'text', field: 'name', label: 'Name', fontSize: 28, fontFamily: "'Raleway', sans-serif", fontWeight: '700', color: '#ffffff' },
-    { id: 'front-logo', type: 'logo', label: 'Logo' },
+    { id: 'front-name', type: 'text', field: 'name', label: 'Name', x: 0.10, y: 0.40, width: 0.80, height: 0.20, fontSize: 28, fontFamily: "'Raleway', sans-serif", fontWeight: '700', color: '#ffffff' },
+    { id: 'front-logo', type: 'logo', label: 'Logo', x: 0.25, y: 0.25, width: 0.50, height: 0.50 },
   ],
   sectionsBack: [
-    { id: 'back-name', type: 'text', field: 'name', label: 'Name', fontSize: 13, fontFamily: "'Raleway', sans-serif", fontWeight: '400', color: '#ffffff' },
-    { id: 'back-title', type: 'text', field: 'title', label: 'Title', fontSize: 10, fontFamily: "'Raleway', sans-serif", fontStyle: 'italic', color: '#f0e6df' },
-    { id: 'back-address', type: 'text', field: 'address', label: 'Address', fontSize: 8, color: '#555555' },
-    { id: 'back-city', type: 'text', field: 'city', label: 'City', fontSize: 8, color: '#555555' },
-    { id: 'back-email', type: 'text', field: 'email', label: 'Email', fontSize: 8, color: '#555555' },
-    { id: 'back-website', type: 'text', field: 'website', label: 'Website', fontSize: 8, color: '#555555' },
-    { id: 'back-instagram', type: 'text', field: 'instagram', label: 'Instagram', fontSize: 8, color: '#555555' },
-    { id: 'back-facebook', type: 'text', field: 'facebook', label: 'Facebook', fontSize: 8, color: '#555555' },
+    { id: 'back-name', type: 'text', field: 'name', label: 'Name', x: 0.05, y: 0.75, width: 0.35, height: 0.10, fontSize: 13, fontFamily: "'Raleway', sans-serif", fontWeight: '400', color: '#ffffff' },
+    { id: 'back-title', type: 'text', field: 'title', label: 'Title', x: 0.05, y: 0.87, width: 0.35, height: 0.08, fontSize: 10, fontFamily: "'Raleway', sans-serif", fontStyle: 'italic', color: '#f0e6df' },
+    { id: 'back-address', type: 'text', field: 'address', label: 'Address', x: 0.50, y: 0.15, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
+    { id: 'back-city', type: 'text', field: 'city', label: 'City', x: 0.50, y: 0.23, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
+    { id: 'back-email', type: 'text', field: 'email', label: 'Email', x: 0.50, y: 0.40, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
+    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.50, y: 0.48, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
+    { id: 'back-instagram', type: 'text', field: 'instagram', label: 'Instagram', x: 0.50, y: 0.65, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
+    { id: 'back-facebook', type: 'text', field: 'facebook', label: 'Facebook', x: 0.50, y: 0.73, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
   ],
 };
 
@@ -87,21 +87,24 @@ export default function LuminaLayout({
   };
 
   if (!isBack) {
+    const frontLogoSection = sections.find(s => s.id === 'front-logo');
+    
     return (
       <div style={{ ...baseStyle, background: t.bg, alignItems: "center", justifyContent: "center" }}>
-        <img 
-          src={data.logoUrl || logoIcon} 
-          alt="Logo" 
-          style={{ 
-            position: "absolute", 
-            width: `${220 * scale}px`, 
-            height: 'auto', 
-            filter: data.logoUrl ? 'none' : 'brightness(0) invert(1)', 
-            opacity: 0.2,
-            cursor: 'pointer'
-          }} 
-          onClick={(e) => handleItemClick(e, 'logo')}
-        />
+        {frontLogoSection && (
+          <img 
+            src={data.logoUrl || logoIcon} 
+            alt="Logo" 
+            style={{ 
+              ...getSectionPos(sections, 'front-logo'),
+              objectFit: 'contain',
+              filter: data.logoUrl ? 'none' : 'brightness(0) invert(1)', 
+              opacity: 0.2,
+              cursor: 'pointer'
+            }} 
+            onClick={(e) => handleItemClick(e, 'logo')}
+          />
+        )}
         <div 
           onClick={(e) => handleItemClick(e, 'name')}
           style={{ 

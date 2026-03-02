@@ -484,6 +484,7 @@ section {
 @media (max-width: 768px) {
   .hero {
     padding: 48px 24px;
+    gap: 0;
   }
 
   .title {
@@ -494,16 +495,28 @@ section {
     flex-direction: column;
     align-items: flex-start;
     gap: 32px;
+    margin-bottom: 20px;
   }
 
   .rotating-card {
     width: 200px;
     height: 200px;
     align-self: center;
+    margin-left: 0;
   }
 
   .subtitle {
     font-size: 16px;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    flex: 1;
+    min-width: 0;
   }
 
   .steps-grid {
@@ -523,6 +536,13 @@ section {
 
   .filters {
     width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+
+  .filter-btn {
+    white-space: nowrap;
   }
 
   .templates-grid {
@@ -581,8 +601,14 @@ section {
     align-self: center;
   }
 
+  .subtitle {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
   .actions {
     flex-direction: column;
+    width: 100%;
   }
 
   .btn-primary,
@@ -590,6 +616,7 @@ section {
     width: 100%;
     text-align: center;
     padding: 14px 20px;
+    justify-content: center;
   }
 
   .steps-grid {
@@ -604,6 +631,14 @@ section {
     font-size: 36px;
   }
 
+  .step h3 {
+    font-size: 18px;
+  }
+
+  .step p {
+    font-size: 14px;
+  }
+
   .templates-grid {
     grid-template-columns: 1fr;
     gap: 20px;
@@ -611,6 +646,14 @@ section {
 
   .features-grid {
     grid-template-columns: 1fr;
+  }
+
+  .feature h3 {
+    font-size: 16px;
+  }
+
+  .feature p {
+    font-size: 13px;
   }
 
   .filters {
@@ -624,6 +667,10 @@ section {
 
   .section-title {
     font-size: 26px;
+  }
+
+  .section-eyebrow {
+    font-size: 11px;
   }
 
   .cta-title {

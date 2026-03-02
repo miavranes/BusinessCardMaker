@@ -1,6 +1,6 @@
 import React from 'react';
 import logoIcon from '../../assets/logo.png';
-import { getSectionTextStyle } from '../../sectionSchema';
+import { getSectionPos, getSectionTextStyle } from '../../sectionSchema';
 
 export const monteroTemplate = {
   id: 4,
@@ -125,14 +125,16 @@ export default function MonteroLayout({
 
   return (
     <div style={{ ...baseStyle, flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-      <div style={{ marginBottom: `${25 * scale}px` }}>
-        <img 
-          src={data.logoUrl || logoIcon} 
-          alt="Logo" 
-          style={{ width: `${80 * scale}px`, height: 'auto', objectFit: 'contain', cursor: 'pointer' }} 
-          onClick={(e) => handleItemClick(e, 'logo')}
-        />
-      </div>
+      {sections.find(s => s.id === 'front-logo') && (
+        <div style={{ marginBottom: `${25 * scale}px` }}>
+          <img 
+            src={data.logoUrl || logoIcon} 
+            alt="Logo" 
+            style={{ ...getSectionPos(sections, 'front-logo'), objectFit: 'contain', cursor: 'pointer' }} 
+            onClick={(e) => handleItemClick(e, 'logo')}
+          />
+        </div>
+      )}
       <div 
         onClick={(e) => handleItemClick(e, 'name')}
         style={{ 

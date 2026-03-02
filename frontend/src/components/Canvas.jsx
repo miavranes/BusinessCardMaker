@@ -19,28 +19,87 @@ const Canvas = forwardRef(({
 
   useEffect(() => {
     const update = () => {
-      if (containerRef.current) setContainerWidth(containerRef.current.offsetWidth);
+      if (containerRef.current) {
+        const width = containerRef.current.offsetWidth;
+        setContainerWidth(width);
+      }
     };
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  useEffect(() => { drawCanvas(); }, [elements, selectedElement, backgroundColor]);
-
-  const drawCanvas = () => {
+  useEffect(() => {
+    console.log('Canvas useEffect - elements:', elements.length, 'sections:', sections?.length, 'isBack:', isBack, 'template:', !!template);
     const canvas = ref?.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('Canvas ref is null!');
+      return;
+    }
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!template) {
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
+    
+    // Render text sections first (below elements)
+    if (sections && sections.length > 0) {
+      console.log('Rendering sections:', sections);
+      sections.forEach(section => {
+        if (section.type === 'text') {
+          const content = section.field === 'name' 
+            ? `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim()
+            : userData?.[section.field] || '';
+          
+          console.log('Section:', section.id, 'field:', section.field, 'content:', content);
+          
+          if (content) {
+            const textElement = {
+              id: section.id,
+              type: 'text',
+              x: section.x * CANVAS_W,
+              y: section.y * CANVAS_H,
+              width: section.width * CANVAS_W,
+              height: section.height * CANVAS_H,
+              content: content,
+              fontSize: section.fontSize || 16,
+              fontFamily: section.fontFamily || 'Arial, sans-serif',
+              color: section.color || '#000000',
+              fontWeight: section.fontWeight || 'normal',
+              fontStyle: section.fontStyle || 'normal',
+              textAlign: section.textAlign || 'left',
+              textDecoration: section.textDecoration || 'none',
+              lineHeight: section.lineHeight || 1.2,
+              textShadowBlur: section.textShadowBlur || 0,
+              textShadowColor: section.textShadowColor || '#000000',
+              textStrokeWidth: section.textStrokeWidth || 0,
+              textStrokeColor: section.textStrokeColor || '#000000',
+              opacity: section.opacity ?? 1,
+            };
+            
+            console.log('Drawing text element:', textElement);
+            
+            ctx.save();
+            ctx.globalAlpha = textElement.opacity;
+            drawText(ctx, textElement);
+            ctx.restore();
+          }
+        }
+      });
+    }
+    
+    console.log('Drawing elements:', elements);
     elements.forEach(el => {
+      ctx.save();
+      ctx.globalAlpha = el.opacity ?? 1;
+      
       if (el.type === 'text') drawText(ctx, el);
       else if (el.type === 'shape') drawShape(ctx, el);
       else if (el.type === 'image') drawImage(ctx, el);
+      
+      ctx.restore();
+      
       if (!showPreview && el.id === selectedElement) {
         ctx.strokeStyle = '#6366f1';
         ctx.lineWidth = 2;
@@ -56,10 +115,10 @@ const Canvas = forwardRef(({
         ctx.lineWidth = 2;
 
         const corners = [
-          { x: b.x - 5, y: b.y - 5 },             // nw
-          { x: b.x + b.width + 5, y: b.y - 5 },   // ne
-          { x: b.x - 5, y: b.y + b.height + 5 },  // sw
-          { x: b.x + b.width + 5, y: b.y + b.height + 5 }, // se
+          { x: b.x - 5, y: b.y - 5 },
+          { x: b.x + b.width + 5, y: b.y - 5 },
+          { x: b.x - 5, y: b.y + b.height + 5 },
+          { x: b.x + b.width + 5, y: b.y + b.height + 5 },
         ];
 
         corners.forEach(corner => {
@@ -70,7 +129,7 @@ const Canvas = forwardRef(({
         });
       }
     });
-  };
+  }, [elements, selectedElement, backgroundColor, template, showPreview, sections, userData]);
 
   const drawText = (ctx, el) => {
     ctx.save();
@@ -366,6 +425,23 @@ const Canvas = forwardRef(({
     <div ref={containerRef} className="canvas-container">
       <div className="canvas-wrapper" style={{ position: 'relative' }}>
 
+        <canvas
+          ref={ref}
+          width={CANVAS_W}
+          height={CANVAS_H}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          className={`canvas-element ${showPreview ? '' : 'draggable'}`}
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            background: template ? 'transparent' : backgroundColor,
+            cursor: resizing ? `${resizing.corner}-resize` : (dragging ? 'grabbing' : 'default'),
+          }}
+        />
+
         {LayoutComponent && (
           <div style={{
             position: 'absolute', top: 0, left: 0,
@@ -442,23 +518,6 @@ const Canvas = forwardRef(({
             </div>
           );
         })}
-
-        <canvas
-          ref={ref}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          className={`canvas-element ${showPreview ? '' : 'draggable'}`}
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            background: template ? 'transparent' : backgroundColor,
-            cursor: resizing ? `${resizing.corner}-resize` : (dragging ? 'grabbing' : 'default'),
-          }}
-        />
       </div>
     </div>
   );

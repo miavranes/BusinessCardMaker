@@ -340,7 +340,6 @@ input[type="color"]::-webkit-color-swatch {
 .fe-tool-btn:hover { background: #e2e8f0; color: #1e293b; }
 .fe-tool-btn.active { background: #fff; color: #6366f1; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 
-/* ─── UPLOAD ─────────────────────────── */
 .fe-upload-btn {
   display: flex;
   align-items: center;
@@ -358,16 +357,6 @@ input[type="color"]::-webkit-color-swatch {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-}
-
-.fe-upload-btn::before {
-  content: '📁';
-  font-size: 18px;
-  transition: transform 0.3s;
-}
-
-.fe-upload-btn:hover::before {
-  transform: scale(1.2) rotate(5deg);
 }
 
 .fe-upload-btn:hover {
@@ -407,5 +396,119 @@ input[type="color"]::-webkit-color-swatch {
   50% { 
     opacity: 0.7; 
     transform: rotate(45deg) scale(1.1);
+  }
+}
+
+/* ─── RESPONSIVE ─────────────────────────── */
+
+/* Tablet (1024px and below) */
+@media (max-width: 1024px) {
+  .floating-editor {
+    width: 320px;
+  }
+
+  .fe-body {
+    max-height: 450px;
+  }
+}
+
+/* Mobile (768px and below) */
+@media (max-width: 768px) {
+  .floating-editor {
+    width: calc(100vw - 32px);
+    max-width: 400px;
+    position: fixed !important;
+    left: 16px !important;
+    right: 16px !important;
+    top: 50% !important;
+    transform: translateY(-50%);
+    margin: 0 auto;
+  }
+
+  .fe-body {
+    max-height: 60vh;
+    padding: 14px 16px;
+  }
+
+  .fe-header {
+    padding: 14px 16px;
+  }
+
+  .fe-group {
+    gap: 6px;
+  }
+
+  .fe-row {
+    gap: 10px;
+  }
+
+  .fe-connector {
+    display: none;
+  }
+}
+
+/* Small Mobile (480px and below) */
+@media (max-width: 480px) {
+  .floating-editor {
+    width: calc(100vw - 24px);
+    left: 12px !important;
+    right: 12px !important;
+  }
+
+  .fe-body {
+    max-height: 70vh;
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .fe-header {
+    padding: 12px 14px;
+  }
+
+  .fe-header-title {
+    font-size: 14px;
+  }
+
+  .fe-header-actions button {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .fe-label {
+    font-size: 10px;
+  }
+
+  input[type="text"],
+  select,
+  textarea {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .fe-stepper {
+    height: 36px;
+  }
+
+  .fe-stepper button {
+    width: 32px;
+    font-size: 15px;
+  }
+
+  .fe-stepper span {
+    font-size: 13px;
+  }
+
+  input[type="color"] {
+    height: 36px;
+  }
+
+  .fe-tool-btn {
+    font-size: 12px;
+    padding: 5px 0;
+  }
+
+  .fe-upload-btn {
+    padding: 12px;
+    font-size: 12px;
   }
 }

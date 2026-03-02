@@ -22,26 +22,25 @@
 
 - [x] Dodati underline opciju
 - [x] Implementirati poravnanje teksta (left, center, right)
-- [ ] Dodati bullet liste
+- [x] Dodati bullet liste
 - [x] Implementirati text shadow efekat
 - [x] Dodati text stroke/outline
 - [ ] Implementirati zakrivljeni tekst (curve text)
 
 ## 4. Slike i Logotipi
 
-- [ ] Dodati "Add Image" dugme
+- [x] Dodati "Add Image" dugme
 - [ ] Implementirati file upload za slike (PNG, JPG, JPEG, SVG)
 - [ ] Dodati "Add Logo" dugme
 - [ ] Implementirati prikaz slika na Canvas-u
-- [ ] Dodati kontrole za resize slika
+- [x] Dodati kontrole za resize slika
 - [ ] Validacija formata fajlova
 
 ## 5. Grafički Elementi
 
-- [ ] Kreirati biblioteku grafičkih elemenata
-- [ ] Dodati "Graphics" dugme u Navbar
+- [x] Kreirati biblioteku grafičkih elemenata
+- [x] Dodati "Graphics" dugme u Navbar
 - [ ] Implementirati dodavanje grafike na Canvas
-- [ ] Dodati shape za zvezdu (star)
 - [ ] Omogućiti promenu boje i veličine grafike
 
 ## 6. QR Kod
@@ -113,10 +112,10 @@
 
 ## 14. Responsivnost
 
-- [ ] Dodati media queries za mobilne (<768px)
-- [ ] Prilagoditi Navbar za mobilne (hamburger menu)
-- [ ] Dodati media queries za tablet (768px-1024px)
-- [ ] Prilagoditi Canvas za različite ekrane
+- [x] Dodati media queries za mobilne (<768px)
+- [x] Prilagoditi Navbar za mobilne (hamburger menu)
+- [x] Dodati media queries za tablet (768px-1024px)
+- [x] Prilagoditi Canvas za različite ekrane
 - [ ] Testirati na mobilnim i tablet uređajima
 
 ## 15. Keyboard Accessibility

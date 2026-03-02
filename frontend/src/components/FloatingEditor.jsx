@@ -20,28 +20,21 @@ export default function FloatingEditor({
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  // Smart positioning: try right, then left, then center
   let left, top;
   
-  // Try positioning to the right of the element
   if (anchorRect.right + GAP + PANEL_W <= vw - 16) {
     left = anchorRect.right + GAP;
     top = Math.max(16, Math.min(anchorRect.top, vh - PANEL_H - 16));
-  }
-  // Try positioning to the left of the element
-  else if (anchorRect.left - GAP - PANEL_W >= 16) {
+  } else if (anchorRect.left - GAP - PANEL_W >= 16) {
     left = anchorRect.left - PANEL_W - GAP;
     top = Math.max(16, Math.min(anchorRect.top, vh - PANEL_H - 16));
-  }
-  // Center on screen as fallback
-  else {
+  } else {
     left = Math.max(16, (vw - PANEL_W) / 2);
     top = Math.max(16, (vh - PANEL_H) / 2);
   }
 
   const style = { position: 'fixed', top, left, zIndex: 9999 };
   
-  // Determine which side the panel is on for visual indicator
   const isOnRight = left > anchorRect.right;
   const isOnLeft = left + PANEL_W < anchorRect.left;
   const isCentered = !isOnRight && !isOnLeft;
@@ -53,12 +46,22 @@ export default function FloatingEditor({
   const getValue = (field) => userData[field] ?? '';
   const sectionLabel = selectedSection.label || selectedSection.id;
 
-  // Normalizuje width/height između 0.05 i 1
   const normalize = (val) => Math.max(0.05, Math.min(1, val));
+
+  const currentValue = getValue(selectedSection.field) || '';
+  const nonEmptyLines = currentValue.split('\n').filter(l => l.trim() !== '');
+  const hasBullets = nonEmptyLines.length > 0 && nonEmptyLines.every(l => l.startsWith('• '));
+
+  const toggleBullets = () => {
+    const lines = currentValue.split('\n');
+    const toggled = hasBullets
+      ? lines.map(l => l.replace(/^• /, '')).join('\n')
+      : lines.map(l => l.trim() === '' ? l : l.startsWith('• ') ? l : `• ${l}`).join('\n');
+    onUpdateUserData(selectedSection.field, toggled);
+  };
 
   return (
     <div className="floating-editor" style={style} onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-      {/* Connection indicator */}
       {!isCentered && (
         <div 
           className="fe-connector"
@@ -144,7 +147,24 @@ export default function FloatingEditor({
                 <textarea 
                   rows="2"
                   value={getValue(selectedSection.field)} 
-                  onChange={e => onUpdateUserData(selectedSection.field, e.target.value)}
+                  onChange={e => {
+                    console.log('Updating field:', selectedSection.field, 'with value:', e.target.value);
+                    onUpdateUserData(selectedSection.field, e.target.value);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && hasBullets) {
+                      e.preventDefault();
+                      const val = getValue(selectedSection.field);
+                      const { selectionStart, selectionEnd } = e.target;
+                      const newVal =
+                        val.slice(0, selectionStart) + '\n• ' + val.slice(selectionEnd);
+                      onUpdateUserData(selectedSection.field, newVal);
+                      requestAnimationFrame(() => {
+                        e.target.selectionStart = selectionStart + 3;
+                        e.target.selectionEnd = selectionStart + 3;
+                      });
+                    }
+                  }}
                   style={{
                     width: '100%',
                     padding: '12px 14px',
@@ -159,8 +179,6 @@ export default function FloatingEditor({
             </div>
 
             <div className="fe-divider" />
-
-            {/* Font & Size */}
             <div className="fe-group">
               <label className="fe-label">Font</label>
               <select value={selectedSection.fontFamily || ''} onChange={e => onUpdateSection(selectedSection.id, { fontFamily: e.target.value })}>
@@ -189,8 +207,6 @@ export default function FloatingEditor({
             </div>
 
             <div className="fe-divider" />
-
-            {/* Style & Align */}
             <div className="fe-group">
               <label className="fe-label">Style</label>
               <div className="fe-toolbar">
@@ -215,6 +231,15 @@ export default function FloatingEditor({
                 >
                   <u>U</u>
                 </button>
+                {!isNameField && (
+                  <button
+                    className={`fe-tool-btn ${hasBullets ? 'active' : ''}`}
+                    onClick={toggleBullets}
+                    title="Bullet lista"
+                  >
+                    •≡
+                  </button>
+                )}
               </div>
             </div>
 
@@ -246,8 +271,6 @@ export default function FloatingEditor({
             </div>
 
             <div className="fe-divider" />
-
-            {/* Effects */}
             <div className="fe-group">
               <label className="fe-label">Shadow</label>
               <div className="fe-row">

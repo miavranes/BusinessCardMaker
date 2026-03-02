@@ -26,3 +26,41 @@
 .canvas-element.draggable {
   cursor: move;
 }
+
+/* ─── RESPONSIVE ─────────────────────────── */
+
+/* Tablet (1024px and below) */
+@media (max-width: 1024px) {
+  .canvas-wrapper {
+    width: 480px;
+    height: 273px;
+  }
+
+  .canvas-element {
+    width: 480px;
+    height: 273px;
+  }
+}
+
+/* Mobile (768px and below) */
+@media (max-width: 768px) {
+  .canvas-wrapper {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    aspect-ratio: 1.76;
+  }
+
+  .canvas-element {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* Small Mobile (480px and below) */
+@media (max-width: 480px) {
+  .canvas-wrapper {
+    max-width: 100%;
+    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.3);
+  }
+}

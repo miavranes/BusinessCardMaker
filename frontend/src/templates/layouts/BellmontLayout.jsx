@@ -1,6 +1,6 @@
 import React from 'react';
 import logoIcon from '../../assets/logo.png';
-import { getSectionTextStyle } from '../../sectionSchema';
+import { getSectionPos, getSectionTextStyle } from '../../sectionSchema';
 
 export const bellmontTemplate = {
   id: 6,
@@ -23,11 +23,11 @@ export const bellmontTemplate = {
   ],
   sectionsBack: [
     { id: 'back-logo', type: 'logo', label: 'Logo', x: 0.64, y: 0.05, width: 0.31, height: 0.26 },
-    { id: 'back-name', type: 'text', field: 'name', label: 'Full Name', fontSize: 13, fontFamily: 'Jost, sans-serif', fontWeight: '400', color: '#7d1e2e', textTransform: 'uppercase' },
-    { id: 'back-title', type: 'text', field: 'title', label: 'Job Title', fontSize: 9, fontFamily: 'Jost, sans-serif', fontWeight: '300', color: '#7d1e2e' },
-    { id: 'back-phone', type: 'text', field: 'phone', label: 'Phone', fontSize: 9, fontFamily: 'Jost, sans-serif', fontWeight: '300', color: '#7d1e2e' },
-    { id: 'back-email', type: 'text', field: 'email', label: 'Email', fontSize: 9, fontFamily: 'Jost, sans-serif', fontWeight: '300', color: '#7d1e2e' },
-    { id: 'back-website', type: 'text', field: 'website', label: 'Website', fontSize: 9, fontFamily: 'Jost, sans-serif', fontWeight: '300', color: '#7d1e2e' }
+    { id: 'back-name', type: 'text', field: 'name', label: 'Full Name', x: 0.05, y: 0.30, width: 0.55, height: 0.10, fontSize: 13, fontFamily: 'Jost, sans-serif', fontWeight: '400', color: '#7d1e2e', textTransform: 'uppercase' },
+    { id: 'back-title', type: 'text', field: 'title', label: 'Job Title', x: 0.05, y: 0.42, width: 0.55, height: 0.08, fontSize: 9, fontFamily: 'Jost, sans-serif', fontWeight: '300', color: '#7d1e2e' },
+    { id: 'back-phone', type: 'text', field: 'phone', label: 'Phone', x: 0.05, y: 0.55, width: 0.55, height: 0.08, fontSize: 9, fontFamily: 'Jost, sans-serif', fontWeight: '300', color: '#7d1e2e' },
+    { id: 'back-email', type: 'text', field: 'email', label: 'Email', x: 0.05, y: 0.65, width: 0.55, height: 0.08, fontSize: 9, fontFamily: 'Jost, sans-serif', fontWeight: '300', color: '#7d1e2e' },
+    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.05, y: 0.75, width: 0.55, height: 0.08, fontSize: 9, fontFamily: 'Jost, sans-serif', fontWeight: '300', color: '#7d1e2e' }
   ]
 };
 
@@ -71,49 +71,85 @@ export default function BellmontLayout({
   };
 
  if (isBack) {
+    const logoSection = sections.find(s => s.id === 'back-logo');
+    
     return (
-      <div style={{ width: '100%', height: '100%', background: t.bgBack, position: "relative", overflow: "hidden", display: "flex", padding: `${40 * scale}px`, boxSizing: 'border-box' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          
+      <div style={{ width: '100%', height: '100%', background: t.bgBack, position: "relative", overflow: "hidden", boxSizing: 'border-box' }}>
+        {logoSection && (
           <img
             src={data.logoUrl || logoIcon}
             alt="Logo"
-            style={{ position: 'absolute', top: `${30 * scale}px`, right: `${30 * scale}px`, height: `${45 * scale}px`, cursor: 'pointer' }}
+            style={{ ...getSectionPos(sections, 'back-logo'), objectFit: 'contain', cursor: 'pointer' }}
             onClick={(e) => handleItemClick(e, 'logo')}
           />
+        )}
 
-          <div onClick={(e) => handleItemClick(e, 'name')} style={{ ...getSectionStyle('back-name', '#7d1e2e'), marginBottom: `${4 * scale}px` }}>
+        {sections.find(s => s.id === 'back-name') && (
+          <div 
+            onClick={(e) => handleItemClick(e, 'name')} 
+            style={{ ...getSectionPos(sections, 'back-name'), ...getSectionStyle('back-name', '#7d1e2e'), display: 'flex', alignItems: 'center' }}
+          >
             {data.firstName} {data.lastName}
           </div>
-          
-          <div onClick={(e) => handleItemClick(e, 'title')} style={{ ...getSectionStyle('back-title', '#7d1e2e'), marginBottom: `${25 * scale}px`, opacity: 0.8 }}>
+        )}
+        
+        {sections.find(s => s.id === 'back-title') && (
+          <div 
+            onClick={(e) => handleItemClick(e, 'title')} 
+            style={{ ...getSectionPos(sections, 'back-title'), ...getSectionStyle('back-title', '#7d1e2e'), display: 'flex', alignItems: 'center', opacity: 0.8 }}
+          >
             {data.title}
           </div>
+        )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: `${6 * scale}px` }}>
-            <div onClick={(e) => handleItemClick(e, 'phone')} style={getSectionStyle('back-phone', '#7d1e2e')}>{data.phone}</div>
-            <div onClick={(e) => handleItemClick(e, 'email')} style={getSectionStyle('back-email', '#7d1e2e')}>{data.email}</div>
-            <div onClick={(e) => handleItemClick(e, 'website')} style={getSectionStyle('back-website', '#7d1e2e')}>{data.website}</div>
+        {sections.find(s => s.id === 'back-phone') && (
+          <div 
+            onClick={(e) => handleItemClick(e, 'phone')} 
+            style={{ ...getSectionPos(sections, 'back-phone'), ...getSectionStyle('back-phone', '#7d1e2e'), display: 'flex', alignItems: 'center' }}
+          >
+            {data.phone}
           </div>
-        </div>
+        )}
+        
+        {sections.find(s => s.id === 'back-email') && (
+          <div 
+            onClick={(e) => handleItemClick(e, 'email')} 
+            style={{ ...getSectionPos(sections, 'back-email'), ...getSectionStyle('back-email', '#7d1e2e'), display: 'flex', alignItems: 'center' }}
+          >
+            {data.email}
+          </div>
+        )}
+        
+        {sections.find(s => s.id === 'back-website') && (
+          <div 
+            onClick={(e) => handleItemClick(e, 'website')} 
+            style={{ ...getSectionPos(sections, 'back-website'), ...getSectionStyle('back-website', '#7d1e2e'), display: 'flex', alignItems: 'center' }}
+          >
+            {data.website}
+          </div>
+        )}
       </div>
     );
   }
 
+ const frontLogoSection = sections.find(s => s.id === 'front-logo');
+ 
  return (
     <div style={{ width: '100%', height: '100%', background: t.bg, position: "relative", overflow: "hidden", display: "flex", justifyContent: 'center', alignItems: 'center' }}>
-      <img
-        src={data.logoUrl || logoIcon}
-        alt="Logo"
-        style={{ 
-            width: '60%', 
-            height: 'auto', 
+      {frontLogoSection && (
+        <img
+          src={data.logoUrl || logoIcon}
+          alt="Logo"
+          style={{ 
+            ...getSectionPos(sections, 'front-logo'),
+            objectFit: 'contain',
             cursor: 'pointer', 
-            filter: data.logoUrl ? 'none' : 'brightness(0) invert(1)', // Ako je default logo, pretvori ga u bijeli
+            filter: data.logoUrl ? 'none' : 'brightness(0) invert(1)',
             transition: 'transform 0.2s' 
-        }}
-        onClick={(e) => handleItemClick(e, 'logo')}
-      />
+          }}
+          onClick={(e) => handleItemClick(e, 'logo')}
+        />
+      )}
     </div>
   );
 }

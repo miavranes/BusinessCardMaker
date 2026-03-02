@@ -164,6 +164,7 @@ export function getSectionPos(sections, id) {
   };
 }
 
+
 function textAlignToJustifyContent(textAlign) {
   switch (textAlign) {
     case 'center': return 'center';
@@ -171,6 +172,7 @@ function textAlignToJustifyContent(textAlign) {
     default:       return 'flex-start';
   }
 }
+
 
 export function getSectionTextStyle(section, scale = 1, fallbacks = {}) {
   if (!section) return fallbacks;
@@ -196,5 +198,6 @@ export function getSectionTextStyle(section, scale = 1, fallbacks = {}) {
       ? `${section.textStrokeWidth}px ${section.textStrokeColor || '#000000'}`
       : 'none',
     paintOrder: 'stroke fill',
+    whiteSpace: 'pre-wrap',
   };
 }
