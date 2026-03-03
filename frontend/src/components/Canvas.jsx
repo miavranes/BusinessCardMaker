@@ -8,6 +8,8 @@ const Canvas = forwardRef(({
   backgroundColor, template, isBack, showPreview,
   selectedSection, onSelectSection, onUpdateSection,
   userData, sections,
+  // new callback for notifying parent when an element is clicked
+  onElementSelect,
 }, ref) => {
   const containerRef = useRef(null);
   const [dragging, setDragging] = useState(null);
@@ -52,6 +54,9 @@ const Canvas = forwardRef(({
       return;
     }
     const ctx = canvas.getContext('2d');
+    // prevent automatic anti-aliasing when canvas is scaled or when images are
+    // moved; keeps everything crisp during drags
+    ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!template) {
       ctx.fillStyle = backgroundColor;
@@ -304,6 +309,15 @@ const Canvas = forwardRef(({
         setSelectedElement(el.id);
         setDragging(el.id);
         setOffset({ x: x - el.x, y: y - el.y });
+        if (typeof onElementSelect === 'function') {
+          const parentRect = containerRef.current.getBoundingClientRect();
+          const scale = parentRect.width / CANVAS_W;
+          const left = parentRect.left + b.x * scale;
+          const top = parentRect.top + b.y * scale;
+          const widthPx = b.width * scale;
+          const heightPx = b.height * scale;
+          onElementSelect(el.id, { left, right: left + widthPx, top, bottom: top + heightPx, width: widthPx, height: heightPx });
+        }
         return;
       }
     }
@@ -402,8 +416,8 @@ const Canvas = forwardRef(({
       const dx = (moveEvent.clientX - startX) / wrapperRect.width;
       const dy = (moveEvent.clientY - startY) / wrapperRect.height;
 
-      const newX = Math.max(0, Math.min(0.95, startSectionX + dx));
-      const newY = Math.max(0, Math.min(0.95, startSectionY + dy));
+      const newX = startSectionX + dx;
+      const newY = startSectionY + dy;
 
       onUpdateSection(section.id, { x: newX, y: newY });
     };

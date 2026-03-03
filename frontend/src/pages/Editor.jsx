@@ -63,15 +63,31 @@ export default function Editor() {
   const [selectedSection, setSelectedSection] = useState(null);
   const [sectionAnchorRect, setSectionAnchorRect] = useState(null);
 
+  const [selectedElement, setSelectedElement] = useState(null); // already declared earlier
+  const [elementAnchorRect, setElementAnchorRect] = useState(null);
+
+
   const handleSelectSection = (section, domRect) => {
     setSelectedSection(section ?? null);
     setSectionAnchorRect(domRect ?? null);
-    if (section) setSelectedElement(null);
+    if (section) {
+      setSelectedElement(null);
+      setElementAnchorRect(null);
+    }
+  };
+
+  const handleSelectElement = (id, rect) => {
+    setSelectedElement(id);
+    setElementAnchorRect(rect || null);
+    // clear section selection when an element is chosen
+    if (id) {
+      setSelectedSection(null);
+      setSectionAnchorRect(null);
+    }
   };
 
   const [elementsFront, setElementsFront] = useState([]);
   const [elementsBack, setElementsBack]   = useState([]);
-  const [selectedElement, setSelectedElement] = useState(null);
 
   const [activeCanvas, setActiveCanvas] = useState('front'); // 'front' | 'back'
 
@@ -110,9 +126,34 @@ export default function Editor() {
     setElementsFront(prev => prev.filter(el => el.id !== id));
     setElementsBack(prev => prev.filter(el => el.id !== id));
     setSelectedElement(null);
+    setElementAnchorRect(null);
   };
 
   const allElements = [...elementsFront, ...elementsBack];
+
+  useEffect(() => {
+    if (!selectedElement) {
+      setElementAnchorRect(null);
+    }
+  }, [selectedElement]);
+
+  // keep the floating editor attached to the element as it moves/resizes
+  useEffect(() => {
+    if (!selectedElement) return;
+    const el = allElements.find(e => e.id === selectedElement);
+    if (!el) return;
+    const CANVAS_W = 580;
+    const CANVAS_H = 330;
+    const canvasRef = activeCanvas === 'front' ? canvasFrontRef : canvasBackRef;
+    if (!canvasRef.current) return;
+    const parentRect = canvasRef.current.getBoundingClientRect();
+    const scale = parentRect.width / CANVAS_W;
+    const left = parentRect.left + el.x * scale;
+    const top = parentRect.top + el.y * scale;
+    const widthPx = (el.width || 0) * scale;
+    const heightPx = (el.height || 0) * scale;
+    setElementAnchorRect({ left, right: left + widthPx, top, bottom: top + heightPx, width: widthPx, height: heightPx });
+  }, [allElements, selectedElement, activeCanvas]);
 
   const [bgFront, setBgFront] = useState(selectedTemplate?.bg || '#ffffff');
   const [bgBack, setBgBack]   = useState(selectedTemplate?.bgBack || '#ffffff');
@@ -238,6 +279,7 @@ export default function Editor() {
               setActiveCanvas('front');
             }}
             onUpdateElement={updateElement}
+            onElementSelect={handleSelectElement}
             backgroundColor={bgFront}
             template={activeTemplate}
             isBack={false}
@@ -270,6 +312,7 @@ export default function Editor() {
               setActiveCanvas('back');
             }}
             onUpdateElement={updateElement}
+            onElementSelect={handleSelectElement}
             backgroundColor={bgBack}
             template={activeTemplate}
             isBack={true}
@@ -284,19 +327,24 @@ export default function Editor() {
         </div>
       </div>
 
-      {selectedSection && (
+      {(selectedSection || selectedElement) && (
         <FloatingEditor
           selectedSection={selectedSection}
-          anchorRect={sectionAnchorRect}
+          selectedElement={allElements.find(el => el.id === selectedElement) || null}
+          anchorRect={selectedSection ? sectionAnchorRect : elementAnchorRect}
           userData={userData}
           onUpdateUserData={updateUserData}
           onUpdateSection={updateSection}
+          onUpdateElement={updateElement}
           onClose={() => {
             setSelectedSection(null);
             setSectionAnchorRect(null);
+            setSelectedElement(null);
+            setElementAnchorRect(null);
           }}
           onLogoUpload={handleLogoUpload}
           onDeleteSection={handleDeleteSection}
+          onDeleteElement={deleteElement}
         />
       )}
     </div>
