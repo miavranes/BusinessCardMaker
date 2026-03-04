@@ -36,38 +36,79 @@ export const blancClassicTemplate = {
   ],
 };
 
-    const PhoneIcon = ({ color, size }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
-    );
-    const MailIcon = ({ color, size }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-    );
-    const WebIcon = ({ color, size }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-    );
+const PhoneIcon = ({ color, size }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+);
+const MailIcon = ({ color, size }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+);
+const WebIcon = ({ color, size }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+);
 
-  export default function BlancClassicLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
+// Map field name → icon component
+const FIELD_ICONS = {
+  phone:   PhoneIcon,
+  email:   MailIcon,
+  website: WebIcon,
+};
+
+// Find a section by base ID, also matching moved copies (e.g. "back-name-moved-1234")
+const findSection = (sections, baseId) =>
+  sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
+
+// Find any logo section present on this canvas side — own original or moved from other side
+const findLogoSection = (sections, isBack) => {
+  const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
+  const otherPrefix = isBack ? 'front-logo' : 'back-logo';
+  return (
+    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
+    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  );
+};
+
+// Find all sections that were moved FROM the other canvas TO this one
+// e.g. on the front canvas, find any "back-xxx-moved-" sections
+const findMovedInSections = (sections, isBack) => {
+  const otherPrefix = isBack ? 'front-' : 'back-';
+  return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
+};
+
+export default function BlancClassicLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
   const t = template || blancClassicTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
 
-  const getSectionStyle = (id) => {
-    const s = sections.find(sec => sec.id === id);
-    return {
-      ...getSectionTextStyle(s, scale, {
-        color: t.text,
-        fontFamily: t.fontName,
-      }),
-      cursor: 'pointer',
-    };
-  };
+  const getSectionStyle = (section) => ({
+    ...getSectionTextStyle(section, scale, { color: t.text, fontFamily: t.fontName }),
+    cursor: 'pointer',
+  });
 
-  const handleClick = (e, id) => {
+  const handleClick = (e, section) => {
     e.stopPropagation();
-    const section = sections.find(s => s.id === id);
     if (section && onSelectSection) {
       onSelectSection(section, e.currentTarget.getBoundingClientRect());
     }
+  };
+
+  const getContent = (section) => {
+    if (section.field === 'name') return `${data.firstName || ''} ${data.lastName || ''}`.trim();
+    return data[section.field] || '';
+  };
+
+  // Render a contact section (phone/email/website) with its icon if applicable
+  const renderTextSection = (section) => {
+    const Icon = FIELD_ICONS[section.field];
+    return (
+      <div
+        key={section.id}
+        onClick={(e) => handleClick(e, section)}
+        style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center', gap: Icon ? '6px' : 0 }}
+      >
+        {Icon && <Icon color={t.accent} size={11 * scale} />}
+        <span>{getContent(section)}</span>
+      </div>
+    );
   };
 
   const base = {
@@ -76,87 +117,80 @@ export const blancClassicTemplate = {
     overflow: 'hidden', boxSizing: 'border-box',
   };
 
+  // Logo renders on whichever canvas it currently lives on
+  const logoSection = findLogoSection(sections, isBack);
+  const logoEl = logoSection ? (
+    <img
+      src={data.logoUrl || logoIcon}
+      alt="Logo"
+      onClick={(e) => handleClick(e, logoSection)}
+      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
+    />
+  ) : null;
+
+  // Sections moved from the other canvas onto this one — rendered generically with icons
+  const movedInSections = findMovedInSections(sections, isBack);
+
   if (isBack) {
+    const backName    = findSection(sections, 'back-name');
+    const backTitle   = findSection(sections, 'back-title');
+    const backPhone   = findSection(sections, 'back-phone');
+    const backEmail   = findSection(sections, 'back-email');
+    const backWebsite = findSection(sections, 'back-website');
+
     return (
       <div style={base}>
-        {sections.find(s => s.id === 'back-name') && (
-          <div
-            onClick={(e) => handleClick(e, 'back-name')}
-            style={{ ...getSectionPos(sections, 'back-name'), ...getSectionStyle('back-name'), display: 'flex', alignItems: 'center' }}
-          >
+        {logoEl}
+
+        {backName && (
+          <div onClick={(e) => handleClick(e, backName)}
+            style={{ ...getSectionPos(sections, backName.id), ...getSectionStyle(backName), display: 'flex', alignItems: 'center' }}>
             {data.firstName} {data.lastName}
           </div>
         )}
 
-        {sections.find(s => s.id === 'back-title') && (
-          <div
-            onClick={(e) => handleClick(e, 'back-title')}
-            style={{ ...getSectionPos(sections, 'back-title'), ...getSectionStyle('back-title'), display: 'flex', alignItems: 'center' }}
-          >
+        {backTitle && (
+          <div onClick={(e) => handleClick(e, backTitle)}
+            style={{ ...getSectionPos(sections, backTitle.id), ...getSectionStyle(backTitle), display: 'flex', alignItems: 'center' }}>
             {data.title}
           </div>
         )}
 
         <div style={{ position: 'absolute', left: '46%', top: '20%', width: '1px', height: '60%', background: t.accent, opacity: t.dividerOpacity }} />
 
-        {sections.find(s => s.id === 'back-phone') && (
-          <div
-            onClick={(e) => handleClick(e, 'back-phone')}
-            style={{ ...getSectionPos(sections, 'back-phone'), ...getSectionStyle('back-phone'), display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <PhoneIcon color={t.accent} size={11 * scale} /><span>{data.phone}</span>
-          </div>
-        )}
+        {backPhone   && renderTextSection(backPhone)}
+        {backEmail   && renderTextSection(backEmail)}
+        {backWebsite && renderTextSection(backWebsite)}
 
-        {sections.find(s => s.id === 'back-email') && (
-          <div
-            onClick={(e) => handleClick(e, 'back-email')}
-            style={{ ...getSectionPos(sections, 'back-email'), ...getSectionStyle('back-email'), display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <MailIcon color={t.accent} size={11 * scale} /><span>{data.email}</span>
-          </div>
-        )}
-
-        {sections.find(s => s.id === 'back-website') && (
-          <div
-            onClick={(e) => handleClick(e, 'back-website')}
-            style={{ ...getSectionPos(sections, 'back-website'), ...getSectionStyle('back-website'), display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <WebIcon color={t.accent} size={11 * scale} /><span>{data.website}</span>
-          </div>
-        )}
+        {/* Render any front sections that were moved onto the back canvas */}
+        {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
   }
 
+  const frontName  = findSection(sections, 'front-name');
+  const frontTitle = findSection(sections, 'front-title');
+
   return (
     <div style={base}>
-      {sections.find(s => s.id === 'front-logo') && (
-        <img
-          src={data.logoUrl || logoIcon}
-          alt="Logo"
-          onClick={(e) => handleClick(e, 'front-logo')}
-          style={{ ...getSectionPos(sections, 'front-logo'), objectFit: 'contain', cursor: 'pointer' }}
-        />
-      )}
+      {logoEl}
 
-      {sections.find(s => s.id === 'front-name') && (
-        <div
-          onClick={(e) => handleClick(e, 'front-name')}
-          style={{ ...getSectionPos(sections, 'front-name'), ...getSectionStyle('front-name'), display: 'flex', alignItems: 'center' }}
-        >
+      {frontName && (
+        <div onClick={(e) => handleClick(e, frontName)}
+          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center' }}>
           {data.firstName} {data.lastName}
         </div>
       )}
 
-      {sections.find(s => s.id === 'front-title') && (
-        <div
-          onClick={(e) => handleClick(e, 'front-title')}
-          style={{ ...getSectionPos(sections, 'front-title'), ...getSectionStyle('front-title'), display: 'flex', alignItems: 'center' }}
-        >
+      {frontTitle && (
+        <div onClick={(e) => handleClick(e, frontTitle)}
+          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center' }}>
           {data.title}
         </div>
       )}
+
+      {/* Render any back sections that were moved onto the front canvas */}
+      {movedInSections.map(s => renderTextSection(s))}
     </div>
   );
 }

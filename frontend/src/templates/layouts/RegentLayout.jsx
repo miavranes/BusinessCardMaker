@@ -6,8 +6,8 @@ export const regentTemplate = {
   id: 9,
   category: "creative",
   name: "Regent",
-  bg: "#1a2d4a",       
-  bgBack: "#dcc7adff", 
+  bg: "#1a2d4a",
+  bgBack: "#dcc7adff",
   accent: "#c9a96e",
   text: "#c9a96e",
   textBack: "#1a2d4a",
@@ -26,19 +26,19 @@ export const regentTemplate = {
     slogan: "Modern Design for Growing Brands.",
   },
   sectionsFront: [
-    { id: 'front-logo',    type: 'logo', label: 'Logo', x: 0.35, y: 0.15, width: 0.30, height: 0.30 },
+    { id: 'front-logo',    type: 'logo', label: 'Logo',    x: 0.35, y: 0.15, width: 0.30, height: 0.30 },
     { id: 'front-company', type: 'text', field: 'company', label: 'Company', x: 0.15, y: 0.48, width: 0.70, height: 0.10, fontSize: 13, fontFamily: "'Jost', sans-serif", fontWeight: '500', color: '#c9a96e', textTransform: 'uppercase' },
     { id: 'front-slogan',  type: 'text', field: 'slogan',  label: 'Slogan',  x: 0.10, y: 0.60, width: 0.80, height: 0.10, fontSize: 10, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', color: '#a0b4c8' },
-    { id: 'front-website', type: 'text', field: 'website', label: 'Website', x: 0.20, y: 0.78, width: 0.60, height: 0.08, fontSize: 9, fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#a0b4c8' },
+    { id: 'front-website', type: 'text', field: 'website', label: 'Website', x: 0.20, y: 0.78, width: 0.60, height: 0.08, fontSize: 9,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#a0b4c8' },
   ],
   sectionsBack: [
-    { id: 'back-logo',    type: 'logo', label: 'Logo', x: 0.08, y: 0.35, width: 0.25, height: 0.30 },
+    { id: 'back-logo',    type: 'logo', label: 'Logo',    x: 0.08, y: 0.35, width: 0.25, height: 0.30 },
     { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    x: 0.48, y: 0.15, width: 0.47, height: 0.12, fontSize: 13, fontFamily: "'Jost', sans-serif", fontWeight: '600', color: '#1a2d4a' },
     { id: 'back-title',   type: 'text', field: 'title',   label: 'Title',   x: 0.48, y: 0.28, width: 0.47, height: 0.10, fontSize: 10, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', color: '#6b7a8d' },
-    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   x: 0.48, y: 0.48, width: 0.47, height: 0.08, fontSize: 8, color: '#1a2d4a' },
-    { id: 'back-address', type: 'text', field: 'address', label: 'Address', x: 0.48, y: 0.58, width: 0.47, height: 0.08, fontSize: 8, color: '#1a2d4a' },
-    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   x: 0.48, y: 0.68, width: 0.47, height: 0.08, fontSize: 8, color: '#1a2d4a' },
-    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.48, y: 0.78, width: 0.47, height: 0.08, fontSize: 8, color: '#1a2d4a' },
+    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   x: 0.48, y: 0.48, width: 0.47, height: 0.08, fontSize: 8,  color: '#1a2d4a' },
+    { id: 'back-address', type: 'text', field: 'address', label: 'Address', x: 0.48, y: 0.58, width: 0.47, height: 0.08, fontSize: 8,  color: '#1a2d4a' },
+    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   x: 0.48, y: 0.68, width: 0.47, height: 0.08, fontSize: 8,  color: '#1a2d4a' },
+    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.48, y: 0.78, width: 0.47, height: 0.08, fontSize: 8,  color: '#1a2d4a' },
   ],
 };
 
@@ -47,172 +47,122 @@ const LocationIcon = ({ color, size }) => <svg width={size} height={size} viewBo
 const MailIcon     = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>;
 const WebIcon      = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
 
-export default function RegentLayout({ 
-  template, 
-  isBack = false, 
-  containerWidth, 
-  userData, 
-  sections = [], 
-  onSelectSection 
-}) {
+const FIELD_ICONS = { phone: PhoneIcon, address: LocationIcon, email: MailIcon, website: WebIcon };
+
+const findSection = (sections, baseId) =>
+  sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
+
+const findLogoSection = (sections, isBack) => {
+  const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
+  const otherPrefix = isBack ? 'front-logo' : 'back-logo';
+  return (
+    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
+    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  );
+};
+
+const findMovedInSections = (sections, isBack) => {
+  const otherPrefix = isBack ? 'front-' : 'back-';
+  return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
+};
+
+export default function RegentLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
   const t = template || regentTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
 
-  const getSectionStyle = (id, fallbackColor, fallbackFontSize) => {
-    const s = sections.find(sec => sec.id === id);
-    if (!s) return { color: fallbackColor };
+  const getSectionStyle = (section) => ({
+    ...getSectionTextStyle(section, scale, { color: t.textBack, fontFamily: t.fontBody }),
+    cursor: 'pointer',
+  });
 
-    return {
-      color: s.color || fallbackColor,
-      fontFamily: s.fontFamily || t.fontBody,
-      fontSize: s.fontSize ? `${s.fontSize * scale}px` : `${fallbackFontSize * scale}px`,
-      fontWeight: s.fontWeight,
-      fontStyle: s.fontStyle,
-      textTransform: s.textTransform || 'none',
-      letterSpacing: s.letterSpacing ? `${s.letterSpacing * scale}em` : undefined,
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-    };
-  };
-
-  const handleItemClick = (e, baseId) => {
+  const handleClick = (e, section) => {
     e.stopPropagation();
-    const fullId = isBack ? `back-${baseId}` : `front-${baseId}`;
-    const sectionList = isBack ? t.sectionsBack : t.sectionsFront;
-    const section = sectionList.find(s => s.id === fullId);
-    if (section && onSelectSection) {
-      onSelectSection(section, e.currentTarget.getBoundingClientRect());
-    }
+    if (section && onSelectSection) onSelectSection(section, e.currentTarget.getBoundingClientRect());
   };
+
+  const getContent = (section) => {
+    if (section.field === 'name') return `${data.firstName || ''} ${data.lastName || ''}`.trim();
+    return data[section.field] || '';
+  };
+
+  const renderTextSection = (section) => {
+    const Icon = FIELD_ICONS[section.field];
+    return (
+      <div
+        key={section.id}
+        onClick={(e) => handleClick(e, section)}
+        style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center', gap: Icon ? `${7 * scale}px` : 0 }}
+      >
+        {Icon && <Icon color={t.textBack} size={10 * scale} />}
+        <span style={{ opacity: 0.8, letterSpacing: '0.03em' }}>{getContent(section)}</span>
+      </div>
+    );
+  };
+
+  const logoSection = findLogoSection(sections, isBack);
+  const logoEl = logoSection ? (
+    <img
+      src={data.logoUrl || logoIcon}
+      alt="Logo"
+      onClick={(e) => handleClick(e, logoSection)}
+      style={{
+        ...getSectionPos(sections, logoSection.id),
+        objectFit: 'contain', cursor: 'pointer',
+        filter: data.logoUrl ? 'none' : `brightness(0) saturate(100%) invert(75%) sepia(40%) saturate(500%) hue-rotate(5deg)`,
+      }}
+    />
+  ) : null;
+
+  const movedInSections = findMovedInSections(sections, isBack);
 
   const baseStyle = {
-    width: '100%', height: '100%', position: "relative", overflow: "hidden", display: "flex", flexShrink: 0, boxSizing: "border-box",
+    width: '100%', height: '100%', position: 'relative', overflow: 'hidden',
+    display: 'flex', flexShrink: 0, boxSizing: 'border-box',
   };
 
   if (!isBack) {
-    const frontLogoSection = sections.find(s => s.id === 'front-logo');
-    
+    const frontCompany = findSection(sections, 'front-company');
+    const frontSlogan  = findSection(sections, 'front-slogan');
+    const frontWebsite = findSection(sections, 'front-website');
+
     return (
-      <div style={{ ...baseStyle, background: t.bg, position: "relative", boxSizing: "border-box" }}>
-        {frontLogoSection && (
-          <img 
-            src={data.logoUrl || logoIcon} 
-            alt="Logo" 
-            style={{ 
-              ...getSectionPos(sections, 'front-logo'),
-              objectFit: 'contain',
-              filter: data.logoUrl ? 'none' : `brightness(0) saturate(100%) invert(75%) sepia(40%) saturate(500%) hue-rotate(5deg)`, 
-              cursor: 'pointer'
-            }} 
-            onClick={(e) => handleItemClick(e, 'logo')}
-          />
-        )}
-        
-        {sections.find(s => s.id === 'front-company') && (
-          <div 
-            onClick={(e) => handleItemClick(e, 'company')}
-            style={{ ...getSectionPos(sections, 'front-company'), ...getSectionStyle('front-company', t.accent, 13), letterSpacing: '0.2em', textAlign: "center", display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            {data.company}
-          </div>
-        )}
-        
-        {sections.find(s => s.id === 'front-slogan') && (
-          <div 
-            onClick={(e) => handleItemClick(e, 'slogan')}
-            style={{ ...getSectionPos(sections, 'front-slogan'), ...getSectionStyle('front-slogan', t.textMuted, 10), letterSpacing: '0.05em', textAlign: "center", opacity: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            {data.slogan}
-          </div>
-        )}
-        
+      <div style={{ ...baseStyle, background: t.bg }}>
+        {logoEl}
+        {frontCompany && <div onClick={(e) => handleClick(e, frontCompany)} style={{ ...getSectionPos(sections, frontCompany.id), ...getSectionStyle(frontCompany), letterSpacing: '0.2em', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.company}</div>}
+        {frontSlogan  && <div onClick={(e) => handleClick(e, frontSlogan)}  style={{ ...getSectionPos(sections, frontSlogan.id),  ...getSectionStyle(frontSlogan),  letterSpacing: '0.05em', textAlign: 'center', opacity: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.slogan}</div>}
         <div style={{ position: 'absolute', left: '50%', top: '72%', transform: 'translateX(-50%)', width: `${60 * scale}px`, height: `${1 * scale}px`, background: t.accent, opacity: 0.4 }} />
-        
-        {sections.find(s => s.id === 'front-website') && (
-          <div 
-            onClick={(e) => handleItemClick(e, 'website')}
-            style={{ ...getSectionPos(sections, 'front-website'), ...getSectionStyle('front-website', t.textMuted, 9), letterSpacing: '0.08em', textAlign: "center", opacity: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            {data.website}
-          </div>
-        )}
+        {frontWebsite && <div onClick={(e) => handleClick(e, frontWebsite)} style={{ ...getSectionPos(sections, frontWebsite.id), ...getSectionStyle(frontWebsite), letterSpacing: '0.08em', textAlign: 'center', opacity: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.website}</div>}
+        {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
   }
 
-  const backLogoSection = sections.find(s => s.id === 'back-logo');
+  const backName    = findSection(sections, 'back-name');
+  const backTitle   = findSection(sections, 'back-title');
+  const backPhone   = findSection(sections, 'back-phone');
+  const backAddress = findSection(sections, 'back-address');
+  const backEmail   = findSection(sections, 'back-email');
+  const backWebsite = findSection(sections, 'back-website');
 
   return (
-    <div style={{ ...baseStyle, background: t.bgBack, position: "relative" }}>
-      <div style={{ 
-        position: "absolute", top: 0, left: 0, width: '42%', height: '100%', 
-        background: t.bg, clipPath: "polygon(0 0, 85% 0, 100% 100%, 0 100%)", 
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", 
-        boxSizing: 'border-box',
-        position: "relative"
-      }}>
-        {backLogoSection && (
-          <img 
-            src={data.logoUrl || logoIcon} 
-            alt="Logo" 
-            style={{ 
-              ...getSectionPos(sections, 'back-logo'),
-              objectFit: 'contain',
-              filter: data.logoUrl ? 'none' : `brightness(0) saturate(100%) invert(75%) sepia(40%) saturate(500%) hue-rotate(5deg)`,
-              cursor: 'pointer'
-            }} 
-            onClick={(e) => handleItemClick(e, 'logo')}
-          />
-        )}
-        <div style={{ position: 'absolute', bottom: '15%', fontFamily: t.fontBody, fontSize: `${8 * scale}px`, fontWeight: 500, color: t.accent, letterSpacing: '0.15em', textTransform: "uppercase", textAlign: "center" }}>
-          {data.company}
-        </div>
+    <div style={{ ...baseStyle, background: t.bgBack }}>
+      {/* Left dark panel with logo */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '42%', height: '100%', background: t.bg, clipPath: 'polygon(0 0, 85% 0, 100% 100%, 0 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
+        {logoEl}
+        <div style={{ position: 'absolute', bottom: '15%', fontFamily: t.fontBody, fontSize: `${8 * scale}px`, fontWeight: 500, color: t.accent, letterSpacing: '0.15em', textTransform: 'uppercase', textAlign: 'center' }}>{data.company}</div>
       </div>
 
-      <div style={{ position: "absolute", top: 0, right: 0, width: '100%', height: '100%', boxSizing: 'border-box' }}>
-        {sections.find(s => s.id === 'back-name') && (
-          <div 
-            onClick={(e) => handleItemClick(e, 'name')}
-            style={{ ...getSectionPos(sections, 'back-name'), ...getSectionStyle('back-name', t.textBack, 13), letterSpacing: '0.03em', display: 'flex', alignItems: 'center' }}
-          >
-            {data.firstName} {data.lastName}
-          </div>
-        )}
-        
-        {sections.find(s => s.id === 'back-title') && (
-          <div 
-            onClick={(e) => handleItemClick(e, 'title')}
-            style={{ ...getSectionPos(sections, 'back-title'), ...getSectionStyle('back-title', '#6b7a8d', 10), display: 'flex', alignItems: 'center' }}
-          >
-            {data.title}
-          </div>
-        )}
-
+      {/* Right content area */}
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '100%', height: '100%', boxSizing: 'border-box' }}>
+        {backName    && <div onClick={(e) => handleClick(e, backName)}    style={{ ...getSectionPos(sections, backName.id),    ...getSectionStyle(backName),    letterSpacing: '0.03em', display: 'flex', alignItems: 'center' }}>{data.firstName} {data.lastName}</div>}
+        {backTitle   && <div onClick={(e) => handleClick(e, backTitle)}   style={{ ...getSectionPos(sections, backTitle.id),   ...getSectionStyle(backTitle),   display: 'flex', alignItems: 'center' }}>{data.title}</div>}
         <div style={{ position: 'absolute', left: '48%', top: '40%', width: '50%', height: `${1 * scale}px`, background: t.textBack, opacity: 0.15 }} />
-
-        {[
-          { id: 'back-phone',   Icon: PhoneIcon,    text: data.phone },
-          { id: 'back-address', Icon: LocationIcon, text: data.address },
-          { id: 'back-email',   Icon: MailIcon,     text: data.email },
-          { id: 'back-website', Icon: WebIcon,      text: data.website }
-        ].map((item) => {
-          const section = sections.find(s => s.id === item.id);
-          if (!section) return null;
-          
-          return (
-            <div 
-              key={item.id} 
-              onClick={(e) => handleItemClick(e, item.id.replace('back-', ''))}
-              style={{ ...getSectionPos(sections, item.id), display: "flex", alignItems: "center", gap: `${7 * scale}px`, cursor: 'pointer' }}
-            >
-              <item.Icon color={t.textBack} size={10 * scale} />
-              <span style={{ ...getSectionStyle(item.id, t.textBack, 8), opacity: 0.8, letterSpacing: '0.03em' }}>
-                {item.text}
-              </span>
-            </div>
-          );
-        })}
+        {backPhone   && renderTextSection(backPhone)}
+        {backAddress && renderTextSection(backAddress)}
+        {backEmail   && renderTextSection(backEmail)}
+        {backWebsite && renderTextSection(backWebsite)}
+        {movedInSections.map(s => renderTextSection(s))}
       </div>
     </div>
   );

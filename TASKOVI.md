@@ -54,12 +54,12 @@
 
 ## 7. Layering (Slojevi)
 
-- [ ] Dodati layer kontrole (Move Forward, Move Back, To Front, To Back)
-- [ ] Implementirati moveForward funkciju
-- [ ] Implementirati moveBackward funkciju
-- [ ] Implementirati bringToFront funkciju
-- [ ] Implementirati sendToBack funkciju
-- [ ] Ažurirati Canvas da poštuje z-index
+- [x] Dodati layer kontrole (Move Forward, Move Back, To Front, To Back)
+- [x] Implementirati moveForward funkciju
+- [x] Implementirati moveBackward funkciju
+- [x] Implementirati bringToFront funkciju
+- [x] Implementirati sendToBack funkciju
+- [x] Ažurirati Canvas da poštuje z-index
 
 ## 8. Dupliciranje
 

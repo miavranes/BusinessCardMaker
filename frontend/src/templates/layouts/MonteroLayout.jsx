@@ -24,8 +24,8 @@ export const monteroTemplate = {
   },
   sectionsFront: [
     { id: 'front-logo',  type: 'logo', label: 'Logo' },
-    { id: 'front-name',  type: 'text', field: 'name',  label: 'Name',  fontSize: 32, fontFamily: 'Cormorant Garamond, serif', fontWeight: '400', color: '#4a4a4a' },
-    { id: 'front-title', type: 'text', field: 'title', label: 'Tagline', fontSize: 8, fontFamily: 'Montserrat, sans-serif', color: '#8a8a8a' },
+    { id: 'front-name',  type: 'text', field: 'name',  label: 'Name',    fontSize: 32, fontFamily: 'Cormorant Garamond, serif', fontWeight: '400', color: '#4a4a4a' },
+    { id: 'front-title', type: 'text', field: 'title', label: 'Tagline', fontSize: 8,  fontFamily: 'Montserrat, sans-serif', color: '#8a8a8a' },
   ],
   sectionsBack: [
     { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    fontSize: 22, fontFamily: 'Montserrat, sans-serif', fontWeight: '400', color: '#4a4a4a' },
@@ -45,115 +45,106 @@ const VerticalLines = ({ color, scale }) => (
   </svg>
 );
 
-export default function MonteroLayout({ 
-  template, 
-  isBack = false, 
-  containerWidth, 
-  userData, 
-  sections = [], 
-  onSelectSection 
-}) {
+const findSection = (sections, baseId) =>
+  sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
+
+const findLogoSection = (sections, isBack) => {
+  const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
+  const otherPrefix = isBack ? 'front-logo' : 'back-logo';
+  return (
+    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
+    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  );
+};
+
+const findMovedInSections = (sections, isBack) => {
+  const otherPrefix = isBack ? 'front-' : 'back-';
+  return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
+};
+
+export default function MonteroLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
   const t = template || monteroTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
 
-  const getSectionStyle = (id, fallbackColor, fallbackFont) => {
-    const s = sections.find(sec => sec.id === id);
-    if (!s) return { color: fallbackColor, fontFamily: fallbackFont };
+  const getSectionStyle = (section) => ({
+    ...getSectionTextStyle(section, scale, { color: t.text, fontFamily: t.fontBody }),
+    cursor: 'pointer',
+  });
 
-    return {
-      color: s.color || fallbackColor,
-      fontFamily: s.fontFamily || fallbackFont,
-      fontSize: s.fontSize ? `${s.fontSize * scale}px` : undefined,
-      fontWeight: s.fontWeight || '400',
-      fontStyle: s.fontStyle || 'normal',
-      textTransform: s.textTransform || 'none',
-      textDecoration: s.textDecoration || 'none',
-      letterSpacing: s.letterSpacing ? `${s.letterSpacing * scale}em` : undefined,
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      lineHeight: 1.3
-    };
-  };
-
-  const handleItemClick = (e, baseId) => {
+  const handleClick = (e, section) => {
     e.stopPropagation();
-    const fullId = isBack ? `back-${baseId}` : `front-${baseId}`;
-    const sectionList = isBack ? t.sectionsBack : t.sectionsFront;
-    const section = sectionList.find(s => s.id === fullId);
-    if (section && onSelectSection) {
-      onSelectSection(section, e.currentTarget.getBoundingClientRect());
-    }
+    if (section && onSelectSection) onSelectSection(section, e.currentTarget.getBoundingClientRect());
   };
+
+  const getContent = (section) => {
+    if (section.field === 'name') return `${data.firstName || ''} ${data.lastName || ''}`.trim();
+    return data[section.field] || '';
+  };
+
+  const renderTextSection = (section) => (
+    <div
+      key={section.id}
+      onClick={(e) => handleClick(e, section)}
+      style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center' }}
+    >
+      {getContent(section)}
+    </div>
+  );
+
+  const logoSection = findLogoSection(sections, isBack);
+  const logoEl = logoSection ? (
+    <img
+      src={data.logoUrl || logoIcon}
+      alt="Logo"
+      onClick={(e) => handleClick(e, logoSection)}
+      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
+    />
+  ) : null;
+
+  const movedInSections = findMovedInSections(sections, isBack);
 
   const baseStyle = {
     width: '100%', height: '100%', background: t.bg,
-    padding: `${50 * scale}px`, boxSizing: "border-box",
-    position: "relative", overflow: "hidden", display: "flex", flexShrink: 0,
+    padding: `${50 * scale}px`, boxSizing: 'border-box',
+    position: 'relative', overflow: 'hidden', display: 'flex', flexShrink: 0,
   };
 
   if (isBack) {
+    const backName    = findSection(sections, 'back-name');
+    const backTitle   = findSection(sections, 'back-title');
+    const backPhone   = findSection(sections, 'back-phone');
+    const backWebsite = findSection(sections, 'back-website');
+    const backEmail   = findSection(sections, 'back-email');
+
     return (
-      <div style={{ ...baseStyle, flexDirection: "column", justifyContent: "space-between" }}>
+      <div style={{ ...baseStyle, flexDirection: 'column', justifyContent: 'space-between' }}>
         <div>
-          <div 
-            onClick={(e) => handleItemClick(e, 'name')}
-            style={{ ...getSectionStyle('back-name', t.text, t.fontBody), marginBottom: `${4 * scale}px` }}
-          >
-            {data.firstName} {data.lastName}
-          </div>
-          <div 
-            onClick={(e) => handleItemClick(e, 'title')}
-            style={getSectionStyle('back-title', t.textMuted, t.fontBody)}
-          >
-            {data.title}
-          </div>
+          {backName  && <div onClick={(e) => handleClick(e, backName)}  style={{ ...getSectionStyle(backName),  marginBottom: `${4 * scale}px` }}>{data.firstName} {data.lastName}</div>}
+          {backTitle && <div onClick={(e) => handleClick(e, backTitle)} style={getSectionStyle(backTitle)}>{data.title}</div>}
         </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: `${8 * scale}px`, ...getSectionStyle('back-phone', t.text, t.fontBody), fontSize: `${10 * scale}px`, fontWeight: 300 }}>
-          <div onClick={(e) => handleItemClick(e, 'phone')}>{data.phone}</div>
-          <div onClick={(e) => handleItemClick(e, 'website')}>{data.website}</div>
-          <div onClick={(e) => handleItemClick(e, 'email')}>{data.email}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: `${8 * scale}px` }}>
+          {backPhone   && <div onClick={(e) => handleClick(e, backPhone)}   style={getSectionStyle(backPhone)}>{data.phone}</div>}
+          {backWebsite && <div onClick={(e) => handleClick(e, backWebsite)} style={getSectionStyle(backWebsite)}>{data.website}</div>}
+          {backEmail   && <div onClick={(e) => handleClick(e, backEmail)}   style={getSectionStyle(backEmail)}>{data.email}</div>}
         </div>
-
         <div style={{ position: 'absolute', top: `${50 * scale}px`, right: `${20 * scale}px`, opacity: 0.9 }}>
           <VerticalLines color={t.text} scale={scale} />
         </div>
+        {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
   }
 
+  const frontName  = findSection(sections, 'front-name');
+  const frontTitle = findSection(sections, 'front-title');
+
   return (
-    <div style={{ ...baseStyle, flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-      {sections.find(s => s.id === 'front-logo') && (
-        <div style={{ marginBottom: `${25 * scale}px` }}>
-          <img 
-            src={data.logoUrl || logoIcon} 
-            alt="Logo" 
-            style={{ ...getSectionPos(sections, 'front-logo'), objectFit: 'contain', cursor: 'pointer' }} 
-            onClick={(e) => handleItemClick(e, 'logo')}
-          />
-        </div>
-      )}
-      <div 
-        onClick={(e) => handleItemClick(e, 'name')}
-        style={{ 
-          letterSpacing: `${0.08 * scale}em`, 
-          ...getSectionStyle('front-name', t.text, t.fontName) 
-        }}
-      >
-        {data.firstName} {data.lastName}
-      </div>
-      <div 
-        onClick={(e) => handleItemClick(e, 'title')}
-        style={{ 
-          marginTop: `${8 * scale}px`,
-          letterSpacing: `${0.15 * scale}em`,
-          ...getSectionStyle('front-title', t.textMuted, t.fontBody) 
-        }}
-      >
-        {data.title}
-      </div>
+    <div style={{ ...baseStyle, flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+      {logoEl && <div style={{ marginBottom: `${25 * scale}px` }}>{logoEl}</div>}
+      {frontName  && <div onClick={(e) => handleClick(e, frontName)}  style={{ letterSpacing: `${0.08 * scale}em`, ...getSectionStyle(frontName)  }}>{data.firstName} {data.lastName}</div>}
+      {frontTitle && <div onClick={(e) => handleClick(e, frontTitle)} style={{ marginTop: `${8 * scale}px`, letterSpacing: `${0.15 * scale}em`, ...getSectionStyle(frontTitle) }}>{data.title}</div>}
+      {movedInSections.map(s => renderTextSection(s))}
     </div>
   );
 }

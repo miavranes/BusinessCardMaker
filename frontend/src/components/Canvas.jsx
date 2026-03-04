@@ -81,8 +81,7 @@ const Canvas = forwardRef(({
         if (section.type === 'text') {
           // if there is a template layout, skip its default sections
           if (template && !section.id.startsWith('text-added')) {
-            return;
-          }
+          return;}
           const content = section.field === 'name' 
             ? `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim()
             : userData?.[section.field] || '';

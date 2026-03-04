@@ -17,6 +17,7 @@
  * │ y               │ 0–1               │ 0                     │
  * │ width           │ 0–1               │ 1                     │
  * │ height          │ 0–1               │ 1                     │
+ * │ zIndex          │ number            │ 1                     │
  * │                 │                   │                       │
  * │ fontSize        │ number (px)       │ template default      │
  * │ fontFamily      │ string (CSS)      │ template default      │
@@ -59,6 +60,7 @@ export function resolveSection(section, template) {
     y:      section.y      ?? 0,
     width:  section.width  ?? 1,
     height: section.height ?? 1,
+    zIndex: section.zIndex ?? 1,
 
     // Text
     fontSize:      section.fontSize      ?? template.defaultFontSize      ?? 12,
@@ -160,10 +162,72 @@ export function getSectionPos(sections, id) {
     top:    `${s.y * 100}%`,
     width:  `${s.width * 100}%`,
     height: `${s.height * 100}%`,
+    zIndex: s.zIndex ?? 1,
     boxSizing: 'border-box',
   };
 }
 
+/**
+ * reorderSections — returns a new sections array with updated zIndex values.
+ *
+ * direction:
+ *   'front'    → bring to top (highest zIndex)
+ *   'back'     → send to bottom (lowest zIndex)
+ *   'forward'  → move one step up
+ *   'backward' → move one step down
+ *
+ * Usage in parent:
+ *   import { reorderSections } from '../sectionSchema';
+ *
+ *   const handleReorderSection = (id, direction) => {
+ *     setSections(prev => reorderSections(prev, id, direction));
+ *   };
+ */
+export function reorderSections(sections, id, direction) {
+  // Normalize — assign clean sequential zIndex values sorted by current zIndex
+  const sorted = [...sections].sort((a, b) => (a.zIndex ?? 1) - (b.zIndex ?? 1));
+  sorted.forEach((s, i) => { s.zIndex = i + 1; });
+
+  const idx = sorted.findIndex(s => s.id === id);
+  if (idx === -1) return sections;
+
+  switch (direction) {
+    case 'front': {
+      const max = sorted.length;
+      sorted[idx].zIndex = max + 1;
+      // Re-normalize so there are no gaps
+      sorted.sort((a, b) => a.zIndex - b.zIndex).forEach((s, i) => { s.zIndex = i + 1; });
+      break;
+    }
+    case 'back': {
+      sorted[idx].zIndex = 0;
+      sorted.sort((a, b) => a.zIndex - b.zIndex).forEach((s, i) => { s.zIndex = i + 1; });
+      break;
+    }
+    case 'forward': {
+      if (idx < sorted.length - 1) {
+        const cur  = sorted[idx].zIndex;
+        const next = sorted[idx + 1].zIndex;
+        sorted[idx].zIndex     = next;
+        sorted[idx + 1].zIndex = cur;
+      }
+      break;
+    }
+    case 'backward': {
+      if (idx > 0) {
+        const cur  = sorted[idx].zIndex;
+        const prev = sorted[idx - 1].zIndex;
+        sorted[idx].zIndex     = prev;
+        sorted[idx - 1].zIndex = cur;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  return sorted.map(s => ({ ...s }));
+}
 
 function textAlignToJustifyContent(textAlign) {
   switch (textAlign) {
@@ -172,7 +236,6 @@ function textAlignToJustifyContent(textAlign) {
     default:       return 'flex-start';
   }
 }
-
 
 export function getSectionTextStyle(section, scale = 1, fallbacks = {}) {
   if (!section) return fallbacks;

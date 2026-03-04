@@ -7,8 +7,8 @@ export const imperialTemplate = {
   id: 7,
   category: "elegant",
   name: "Imperial",
-  bg: "#f2efe9", 
-  bgBack: "#1a1a1a", 
+  bg: "#f2efe9",
+  bgBack: "#1a1a1a",
   accent: "#1a1a1a",
   text: "#1a1a1a",
   textBack: "#c8c2b8",
@@ -28,158 +28,136 @@ export const imperialTemplate = {
     { id: 'front-logo', type: 'logo', label: 'Logo', x: 0.25, y: 0.20, width: 0.50, height: 0.60 }
   ],
   sectionsBack: [
-    { id: 'back-name', type: 'text', field: 'name', label: 'Full Name', x: 0.55, y: 0.08, width: 0.40, height: 0.12, fontSize: 14, fontFamily: "'Jost', sans-serif", fontWeight: '400' },
-    { id: 'back-title', type: 'text', field: 'title', label: 'Job Title', x: 0.55, y: 0.22, width: 0.40, height: 0.10, fontSize: 11, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' },
-    { id: 'back-phone', type: 'text', field: 'phone', label: 'Phone', x: 0.06, y: 0.60, width: 0.40, height: 0.08, fontSize: 8, fontFamily: "'Jost', sans-serif", fontWeight: '300' },
-    { id: 'back-email', type: 'text', field: 'email', label: 'Email', x: 0.06, y: 0.70, width: 0.40, height: 0.08, fontSize: 8, fontFamily: "'Jost', sans-serif", fontWeight: '300' },
-    { id: 'back-linkedin', type: 'text', field: 'linkedin', label: 'LinkedIn', x: 0.06, y: 0.80, width: 0.40, height: 0.08, fontSize: 8, fontFamily: "'Jost', sans-serif", fontWeight: '300' },
-    { id: 'back-instagram', type: 'text', field: 'instagram', label: 'Instagram', x: 0.06, y: 0.90, width: 0.40, height: 0.08, fontSize: 8, fontFamily: "'Jost', sans-serif", fontWeight: '300' },
+    { id: 'back-name',      type: 'text', field: 'name',      label: 'Full Name', x: 0.55, y: 0.08, width: 0.40, height: 0.12, fontSize: 14, fontFamily: "'Jost', sans-serif", fontWeight: '400', color: '#c8c2b8' },
+    { id: 'back-title',     type: 'text', field: 'title',     label: 'Job Title', x: 0.55, y: 0.22, width: 0.40, height: 0.10, fontSize: 11, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', color: '#888888' },
+    { id: 'back-phone',     type: 'text', field: 'phone',     label: 'Phone',     x: 0.06, y: 0.60, width: 0.40, height: 0.08, fontSize: 8,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#c8c2b8' },
+    { id: 'back-email',     type: 'text', field: 'email',     label: 'Email',     x: 0.06, y: 0.70, width: 0.40, height: 0.08, fontSize: 8,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#c8c2b8' },
+    { id: 'back-linkedin',  type: 'text', field: 'linkedin',  label: 'LinkedIn',  x: 0.06, y: 0.80, width: 0.40, height: 0.08, fontSize: 8,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#c8c2b8' },
+    { id: 'back-instagram', type: 'text', field: 'instagram', label: 'Instagram', x: 0.06, y: 0.90, width: 0.40, height: 0.08, fontSize: 8,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#c8c2b8' },
   ],
 };
 
-export default function ImperialLayout({ 
-  template, 
-  isBack = false, 
-  containerWidth, 
-  userData, 
-  sections = [], 
-  onSelectSection 
-}) {
+const findSection = (sections, baseId) =>
+  sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
+
+const findLogoSection = (sections, isBack) => {
+  const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
+  const otherPrefix = isBack ? 'front-logo' : 'back-logo';
+  return (
+    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
+    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  );
+};
+
+const findMovedInSections = (sections, isBack) => {
+  const otherPrefix = isBack ? 'front-' : 'back-';
+  return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
+};
+
+export default function ImperialLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
   const t = template || imperialTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
 
-  const getSectionStyle = (id, fallbackColor) => {
-    const s = sections.find(sec => sec.id === id);
-    if (!s) return { color: fallbackColor };
+  const getSectionStyle = (section) => ({
+    ...getSectionTextStyle(section, scale, { color: t.textBack, fontFamily: t.fontBody }),
+    cursor: 'pointer',
+  });
 
-    return {
-      color: s.color || fallbackColor,
-      fontFamily: s.fontFamily, 
-      fontSize: s.fontSize ? `${s.fontSize * scale}px` : undefined,
-      fontWeight: s.fontWeight,
-      fontStyle: s.fontStyle,
-      textTransform: s.textTransform || 'none',
-      textDecoration: s.textDecoration || 'none',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-    };
-  };
-
-  const handleItemClick = (e, baseId) => {
+  const handleClick = (e, section) => {
     e.stopPropagation();
-    const fullId = isBack ? `back-${baseId}` : `front-${baseId}`;
-    const sectionList = isBack ? t.sectionsBack : t.sectionsFront;
-    const section = sectionList.find(s => s.id === fullId);
-    if (section && onSelectSection) {
-      onSelectSection(section, e.currentTarget.getBoundingClientRect());
-    }
+    if (section && onSelectSection) onSelectSection(section, e.currentTarget.getBoundingClientRect());
   };
+
+  const getContent = (section) => {
+    if (section.field === 'name') return `${data.firstName || ''} ${data.lastName || ''}`.trim();
+    return data[section.field] || '';
+  };
+
+  const renderTextSection = (section) => (
+    <div
+      key={section.id}
+      onClick={(e) => handleClick(e, section)}
+      style={{
+        ...getSectionPos(sections, section.id),
+        ...getSectionStyle(section),
+        display: 'flex', alignItems: 'center',
+        gap: `${4 * scale}px`,
+        letterSpacing: `${0.03 * scale}em`,
+      }}
+    >
+      <span style={{ opacity: 0.5 }}>{section.label?.toLowerCase()} :</span>
+      <span style={{ opacity: 0.85 }}>{getContent(section)}</span>
+    </div>
+  );
+
+  const logoSection = findLogoSection(sections, isBack);
+  const logoEl = logoSection ? (
+    <img
+      src={data.logoUrl || logoIcon}
+      alt="Logo"
+      onClick={(e) => handleClick(e, logoSection)}
+      style={{
+        ...getSectionPos(sections, logoSection.id),
+        objectFit: 'contain', cursor: 'pointer',
+        filter: data.logoUrl ? 'none' : 'brightness(0) invert(1) opacity(0.25)',
+      }}
+    />
+  ) : null;
+
+  const movedInSections = findMovedInSections(sections, isBack);
 
   if (!isBack) {
-    const frontLogoSection = sections.find(s => s.id === 'front-logo');
-    
     return (
       <div style={{
         width: '100%', height: '100%', background: t.bgBack,
         backgroundImage: `radial-gradient(ellipse at 30% 40%, rgba(255,255,255,0.03) 0%, transparent 60%)`,
-        display: "flex", alignItems: "center", justifyContent: "center", position: "relative"
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        position: 'relative', boxSizing: 'border-box',
       }}>
-        {frontLogoSection && (
-          <img 
-            src={data.logoUrl || logoIcon} 
-            alt="Logo" 
-            style={{ 
-              ...getSectionPos(sections, 'front-logo'),
-              objectFit: 'contain',
-              filter: data.logoUrl ? 'none' : 'brightness(0) invert(1) opacity(0.25)',
-              cursor: 'pointer' 
-            }} 
-            onClick={(e) => handleItemClick(e, 'logo')}
-          />
-        )}
+        {logoEl}
+        {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
   }
 
- return (
-    <div style={{ 
-      width: '100%', height: '100%', background: t.bg, 
-      position: "relative", boxSizing: 'border-box'
-    }}>
-      
-      {sections.find(s => s.id === 'back-name') && (
-        <div 
-          onClick={(e) => handleItemClick(e, 'name')}
-          style={{ 
-            ...getSectionPos(sections, 'back-name'),
-            ...getSectionStyle('back-name', t.text),
-            display: 'flex',
-            alignItems: 'flex-end',
-            textAlign: 'right',
-            justifyContent: 'flex-end',
-            fontFamily: t.fontBody, 
-            letterSpacing: `${0.1 * scale}em`,
-          }}
-        >
+  const backName      = findSection(sections, 'back-name');
+  const backTitle     = findSection(sections, 'back-title');
+  const backPhone     = findSection(sections, 'back-phone');
+  const backEmail     = findSection(sections, 'back-email');
+  const backLinkedin  = findSection(sections, 'back-linkedin');
+  const backInstagram = findSection(sections, 'back-instagram');
+
+  return (
+    <div style={{ width: '100%', height: '100%', background: t.bg, position: 'relative', boxSizing: 'border-box' }}>
+      {logoEl}
+
+      {backName && (
+        <div onClick={(e) => handleClick(e, backName)}
+          style={{ ...getSectionPos(sections, backName.id), ...getSectionStyle(backName), display: 'flex', alignItems: 'flex-end', textAlign: 'right', justifyContent: 'flex-end', letterSpacing: `${0.1 * scale}em` }}>
           {data.firstName} {data.lastName}
         </div>
       )}
-      
-      {sections.find(s => s.id === 'back-title') && (
-        <div 
-          onClick={(e) => handleItemClick(e, 'title')}
-          style={{ 
-            ...getSectionPos(sections, 'back-title'),
-            ...getSectionStyle('back-title', t.textMuted),
-            display: 'flex',
-            alignItems: 'flex-start',
-            textAlign: 'right',
-            justifyContent: 'flex-end',
-          }}
-        >
+
+      {backTitle && (
+        <div onClick={(e) => handleClick(e, backTitle)}
+          style={{ ...getSectionPos(sections, backTitle.id), ...getSectionStyle(backTitle), display: 'flex', alignItems: 'flex-start', textAlign: 'right', justifyContent: 'flex-end' }}>
           {data.title}
         </div>
       )}
 
-      {[
-        { id: "back-phone", label: "contact", value: data.phone },
-        { id: "back-email", label: "email", value: data.email },
-        { id: "back-linkedin", label: "linkedin", value: data.linkedin },
-        { id: "back-instagram", label: "instagram", value: data.instagram },
-      ].map((item) => {
-        const section = sections.find(s => s.id === item.id);
-        if (!section) return null;
-        
-        return (
-          <div 
-            key={item.id} 
-            onClick={(e) => handleItemClick(e, item.id.replace('back-', ''))}
-            style={{ 
-              ...getSectionPos(sections, item.id),
-              ...getSectionStyle(item.id, t.text),
-              display: 'flex',
-              alignItems: 'center',
-              gap: `${4 * scale}px`, 
-              letterSpacing: `${0.03 * scale}em`,
-            }}
-          >
-            <span style={{ opacity: 0.5 }}>{item.label} :</span>
-            <span style={{ opacity: 0.85 }}>{item.value}</span>
-          </div>
-        );
-      })}
+      {backPhone     && renderTextSection(backPhone)}
+      {backEmail     && renderTextSection(backEmail)}
+      {backLinkedin  && renderTextSection(backLinkedin)}
+      {backInstagram && renderTextSection(backInstagram)}
 
-      <div style={{ 
-        position: 'absolute', 
-        right: `${5 * scale}%`, 
-        bottom: `${5 * scale}%`, 
-        width: `${70 * scale}px`, 
-        height: `${70 * scale}px`, 
-        border: `${1 * scale}px solid rgba(0,0,0,0.12)`, 
-        padding: `${4 * scale}px`, 
-        background: 'white', 
-        flexShrink: 0
+      {movedInSections.map(s => renderTextSection(s))}
+
+      <div style={{
+        position: 'absolute', right: `${5 * scale}%`, bottom: `${5 * scale}%`,
+        width: `${70 * scale}px`, height: `${70 * scale}px`,
+        border: `${1 * scale}px solid rgba(0,0,0,0.12)`,
+        padding: `${4 * scale}px`, background: 'white', flexShrink: 0,
       }}>
         <img src={qrCode} alt="QR Code" style={{ width: '100%', height: '100%' }} />
       </div>

@@ -1,3 +1,4 @@
+import React from 'react';
 import logo from '../../assets/logo.png';
 import qrCode from '../../assets/qr.svg';
 import { getSectionPos, getSectionTextStyle } from '../../sectionSchema';
@@ -41,79 +42,109 @@ const PhoneIcon = ({ color, size }) => <svg width={size} height={size} viewBox="
 const MailIcon  = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>;
 const WebIcon   = ({ color, size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
 
+const FIELD_ICONS = { phone: PhoneIcon, email: MailIcon, website: WebIcon };
+
+const findSection = (sections, baseId) =>
+  sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
+
+const findLogoSection = (sections, isBack) => {
+  const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
+  const otherPrefix = isBack ? 'front-logo' : 'back-logo';
+  return (
+    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
+    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  );
+};
+
+const findMovedInSections = (sections, isBack) => {
+  const otherPrefix = isBack ? 'front-' : 'back-';
+  return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
+};
+
 export default function VirelliLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
   const t = template || virelliTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
 
-  const getSectionStyle = (id) => {
-    const s = sections.find(sec => sec.id === id);
-    return {
-      ...getSectionTextStyle(s, scale),
-      cursor: 'pointer',
-    };
-  };
+  const getSectionStyle = (section) => ({
+    ...getSectionTextStyle(section, scale, { color: t.text, fontFamily: t.fontBody }),
+    cursor: 'pointer',
+  });
 
-  const handleItemClick = (e, id) => {
+  const handleClick = (e, section) => {
     e.stopPropagation();
-    const section = sections.find(s => s.id === id);
     if (section && onSelectSection) onSelectSection(section, e.currentTarget.getBoundingClientRect());
   };
+
+  const getContent = (section) => {
+    if (section.field === 'name') return `${data.firstName || ''} ${data.lastName || ''}`.trim();
+    return data[section.field] || '';
+  };
+
+  const renderTextSection = (section) => {
+    const Icon = FIELD_ICONS[section.field];
+    return (
+      <div
+        key={section.id}
+        onClick={(e) => handleClick(e, section)}
+        style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center', gap: Icon ? `${6 * scale}px` : 0 }}
+      >
+        {Icon && <Icon color={t.text} size={10 * scale} />}
+        <span>{getContent(section)}</span>
+      </div>
+    );
+  };
+
+  const logoSection = findLogoSection(sections, isBack);
+  const logoEl = logoSection ? (
+    <img
+      src={data.logoUrl || logo}
+      alt="Logo"
+      onClick={(e) => handleClick(e, logoSection)}
+      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer', filter: 'brightness(0) invert(1)' }}
+    />
+  ) : null;
+
+  const movedInSections = findMovedInSections(sections, isBack);
 
   const base = { width: '100%', height: '100%', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
 
   if (isBack) {
+    const backName    = findSection(sections, 'back-name');
+    const backPhone   = findSection(sections, 'back-phone');
+    const backEmail   = findSection(sections, 'back-email');
+    const backWebsite = findSection(sections, 'back-website');
+
     return (
       <div style={{ ...base, background: t.bg }}>
-       <div style={{ position: 'absolute', top: `${20 * scale}px`, right: `${20 * scale}px`, width: `${60 * scale}px`, height: `${60 * scale}px` }}>
+        <div style={{ position: 'absolute', top: `${20 * scale}px`, right: `${20 * scale}px`, width: `${60 * scale}px`, height: `${60 * scale}px` }}>
           <img src={qrCode} alt="QR" style={{ width: '100%', height: '100%' }} />
         </div>
 
-        <div onClick={(e) => handleItemClick(e, 'back-name')}
-          style={{ ...getSectionPos(sections, 'back-name'), ...getSectionStyle('back-name'), display: 'flex', alignItems: 'center' }}>
-          {data.firstName}<br />{data.lastName}
-        </div>
-
-        <div onClick={(e) => handleItemClick(e, 'back-phone')}
-          style={{ ...getSectionPos(sections, 'back-phone'), ...getSectionStyle('back-phone'), display: 'flex', alignItems: 'center', gap: `${6 * scale}px` }}>
-          <PhoneIcon color={t.text} size={10 * scale} /><span>{data.phone}</span>
-        </div>
-
-        <div onClick={(e) => handleItemClick(e, 'back-email')}
-          style={{ ...getSectionPos(sections, 'back-email'), ...getSectionStyle('back-email'), display: 'flex', alignItems: 'center', gap: `${6 * scale}px` }}>
-          <MailIcon color={t.text} size={10 * scale} /><span>{data.email}</span>
-        </div>
-
-        <div onClick={(e) => handleItemClick(e, 'back-website')}
-          style={{ ...getSectionPos(sections, 'back-website'), ...getSectionStyle('back-website'), display: 'flex', alignItems: 'center', gap: `${6 * scale}px` }}>
-          <WebIcon color={t.text} size={10 * scale} /><span>{data.website}</span>
-        </div>
+        {backName    && <div onClick={(e) => handleClick(e, backName)}    style={{ ...getSectionPos(sections, backName.id),    ...getSectionStyle(backName),    display: 'flex', alignItems: 'center' }}>{data.firstName}<br />{data.lastName}</div>}
+        {backPhone   && renderTextSection(backPhone)}
+        {backEmail   && renderTextSection(backEmail)}
+        {backWebsite && renderTextSection(backWebsite)}
 
         <div style={{ position: 'absolute', bottom: `${10 * scale}px`, left: `${10 * scale}px`, opacity: 0.3 }}>
           <img src={data.logoUrl || logo} alt="Logo" style={{ height: `${50 * scale}px`, width: 'auto' }} />
         </div>
+
+        {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
   }
 
+  const frontName  = findSection(sections, 'front-name');
+  const frontTitle = findSection(sections, 'front-title');
+
   return (
     <div style={{ ...base, background: t.bgBack }}>
-      <img src={data.logoUrl || logo} alt="Logo"
-        onClick={(e) => handleItemClick(e, 'front-logo')}
-        style={{ ...getSectionPos(sections, 'front-logo'), objectFit: 'contain', filter: 'brightness(0) invert(1)', cursor: 'pointer' }}
-      />
-
-      <div onClick={(e) => handleItemClick(e, 'front-name')}
-        style={{ ...getSectionPos(sections, 'front-name'), ...getSectionStyle('front-name'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {data.firstName} {data.lastName}
-      </div>
-
-      <div onClick={(e) => handleItemClick(e, 'front-title')}
-        style={{ ...getSectionPos(sections, 'front-title'), ...getSectionStyle('front-title'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {data.title}
-      </div>
-
+      {logoEl}
+      {frontName  && <div onClick={(e) => handleClick(e, frontName)}  style={{ ...getSectionPos(sections, frontName.id),  ...getSectionStyle(frontName),  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.firstName} {data.lastName}</div>}
+      {frontTitle && <div onClick={(e) => handleClick(e, frontTitle)} style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.title}</div>}
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${3 * scale}px`, background: t.accent }} />
+      {movedInSections.map(s => renderTextSection(s))}
     </div>
   );
 }
