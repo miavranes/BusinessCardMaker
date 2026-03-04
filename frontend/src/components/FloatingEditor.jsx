@@ -22,28 +22,14 @@ export default function FloatingEditor({
 
   const PANEL_W = 340;
   const PANEL_H = 600;
-  const GAP = 16;
-  const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  let left, top;
-  
-  if (anchorRect.right + GAP + PANEL_W <= vw - 16) {
-    left = anchorRect.right + GAP;
-    top = Math.max(16, Math.min(anchorRect.top, vh - PANEL_H - 16));
-  } else if (anchorRect.left - GAP - PANEL_W >= 16) {
-    left = anchorRect.left - PANEL_W - GAP;
-    top = Math.max(16, Math.min(anchorRect.top, vh - PANEL_H - 16));
-  } else {
-    left = Math.max(16, (vw - PANEL_W) / 2);
-    top = Math.max(16, (vh - PANEL_H) / 2);
-  }
+  const top = Math.max(16, (vh - PANEL_H) / 2);
+  const style = { position: 'fixed', top, right: 16, zIndex: 9999, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' };
 
-  const style = { position: 'fixed', top, left, zIndex: 9999 };
-  
-  const isOnRight = left > anchorRect.right;
-  const isOnLeft = left + PANEL_W < anchorRect.left;
-  const isCentered = !isOnRight && !isOnLeft;
+  const isOnRight = false;
+  const isOnLeft = false;
+  const isCentered = true;
 
   const isLogo = editingSection && selectedSection.type === 'logo';
   const isText = editingSection && selectedSection.type === 'text';

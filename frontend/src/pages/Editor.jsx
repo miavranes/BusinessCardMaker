@@ -336,7 +336,9 @@ export default function Editor() {
         onAddTextSection={handleAddTextSection}
       />
 
-      <div className="canvas-area">
+      {/** when a section/element is selected we shift the canvases left so the
+          floating editor can slide in without overlapping. */}
+      <div className={`canvas-area${(selectedSection || selectedElement) ? ' canvas-area--shift' : ''}`}>
         <div
           className={`canvas-side ${activeCanvas === 'front' ? 'canvas-side--active' : ''}`}
           onClick={() => setActiveCanvas('front')}
