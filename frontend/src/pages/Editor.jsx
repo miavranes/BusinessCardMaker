@@ -153,20 +153,21 @@ export default function Editor() {
   };
 
   const mapSectionToSide = (section, side) => {
-    // when moving logos we need to translate ids so the layout knows about them
-    if (section.type === 'logo') {
-      const newId = side === 'back' ? 'back-logo' : 'front-logo';
-      return { ...section, id: newId };
-    }
-    return section;
+    // when moving sections between canvases, remap the ID to match the target side
+    // so the layout component knows to render it (IDs are tied to specific sides)
+    const prefix = side === 'back' ? 'back-' : 'front-';
+    const currentPrefix = section.id.startsWith('back-') ? 'back-' : 'front-';
+    const baseName = section.id.replace(currentPrefix, '');
+    const newId = prefix + baseName;
+    return { ...section, id: newId };
   };
 
   const moveSectionToBack = (section) => {
     DEBUG && console.log('Moving section to back canvas:', section.id);
+    // remove from front using original id
     setSectionsFront(prev => prev.filter(s => s.id !== section.id));
     const mapped = mapSectionToSide(section, 'back');
     setSectionsBack(prev => {
-      // if section already has updated coords, replace existing copy
       const filtered = prev.filter(s => s.id !== mapped.id);
       return [...filtered, mapped];
     });
@@ -176,6 +177,7 @@ export default function Editor() {
   
   const moveSectionToFront = (section) => {
     DEBUG && console.log('Moving section to front canvas:', section.id);
+    // remove from back using original id
     setSectionsBack(prev => prev.filter(s => s.id !== section.id));
     const mapped = mapSectionToSide(section, 'front');
     setSectionsFront(prev => {
@@ -336,9 +338,7 @@ export default function Editor() {
         onAddTextSection={handleAddTextSection}
       />
 
-      {/** when a section/element is selected we shift the canvases left so the
-          floating editor can slide in without overlapping. */}
-      <div className={`canvas-area${(selectedSection || selectedElement) ? ' canvas-area--shift' : ''}`}>
+     <div className={`canvas-area${(selectedSection || selectedElement) ? ' canvas-area--shift' : ''}`}>
         <div
           className={`canvas-side ${activeCanvas === 'front' ? 'canvas-side--active' : ''}`}
           onClick={() => setActiveCanvas('front')}

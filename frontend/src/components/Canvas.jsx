@@ -604,13 +604,12 @@ const Canvas = forwardRef(({
           const clientY = upEvent.clientY || sectionDragRef.current.lastY;
           if (clientX >= otherRect.left && clientX <= otherRect.right &&
               clientY >= otherRect.top && clientY <= otherRect.bottom) {
-            // drop happened on the other side; normalize coordinates
             const otherCanvasEl = otherSideElement.querySelector('canvas');
             let newSection;
             if (otherCanvasEl) {
               const cr = otherCanvasEl.getBoundingClientRect();
-              const normX = (clientX - cr.left) * (CANVAS_W / cr.width);
-              const normY = (clientY - cr.top) * (CANVAS_H / cr.height);
+              const normX = (clientX - cr.left) / cr.width;   
+              const normY = (clientY - cr.top) / cr.height;   
               newSection = { ...sectionDragRef.current.section, x: normX, y: normY };
             } else {
               newSection = sectionDragRef.current.section;
