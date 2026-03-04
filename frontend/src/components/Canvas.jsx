@@ -269,7 +269,17 @@ const Canvas = forwardRef(({
   };
 
   const drawImage = (ctx, el) => {
-    if (el.imgElement) ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
+    if (!el.imgElement) return;
+    if (el.color) {
+      // draw then tint using source-in composite
+      ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = el.color;
+      ctx.fillRect(el.x, el.y, el.width, el.height);
+      ctx.globalCompositeOperation = 'source-over';
+    } else {
+      ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
+    }
   };
 
   const getElementBounds = (el) => {
@@ -504,6 +514,9 @@ const Canvas = forwardRef(({
     const dataUrl = e.dataTransfer.getData('application/x-icon-svg');
     if (!dataUrl) return;
 
+    // try to grab a color supplied by the sidebar drag
+    const initialColor = e.dataTransfer.getData('application/x-icon-color') || undefined;
+
     const { x, y } = getMousePos(e);
     const W = 60;
     const H = 60;
@@ -520,6 +533,7 @@ const Canvas = forwardRef(({
         imgElement: img,
         src: dataUrl,
         opacity: 1,
+        color: initialColor,
       };
       onAddElement(newElement);
     };

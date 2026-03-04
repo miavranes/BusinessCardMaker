@@ -126,6 +126,8 @@ export default function Sidebar({
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/x-icon-svg', dataUrl);
     e.dataTransfer.setData('text/plain', dataUrl);
+    // also carry the currently-selected color so dropped icons preserve it
+    e.dataTransfer.setData('application/x-icon-color', iconColor);
   };
 
   const addIcon = (e) => {
@@ -163,6 +165,7 @@ export default function Sidebar({
         imgElement: img,
         src: dataUrl,
         opacity: 1,
+        color: iconColor,
       };
       DEBUG && console.log('Calling onAddElement with:', newElement);
       onAddElement(newElement);
