@@ -191,7 +191,7 @@ export default function FloatingEditor({
               <label className="fe-label">Content</label>
               {isNameField ? (
                 <div className="fe-dual-input">
-                  <input type="text" placeholder="First Name" value={getValue('firstName')} onChange={e => onUpdateUserData('firstName', e.target.value)} />
+                  <input autoFocus type="text" placeholder="First Name" value={getValue('firstName')} onChange={e => onUpdateUserData('firstName', e.target.value)} />
                   <input type="text" placeholder="Last Name" value={getValue('lastName')} onChange={e => onUpdateUserData('lastName', e.target.value)} />
                 </div>
               ) : (
@@ -199,7 +199,6 @@ export default function FloatingEditor({
                   rows="2"
                   value={getValue(selectedSection.field)} 
                   onChange={e => {
-                    DEBUG && console.log('Updating field:', selectedSection.field, 'with value:', e.target.value);
                     onUpdateUserData(selectedSection.field, e.target.value);
                   }}
                   onKeyDown={e => {
@@ -216,6 +215,8 @@ export default function FloatingEditor({
                       });
                     }
                   }}
+                  autoFocus
+                  placeholder="Enter text…"
                   style={{
                     width: '100%',
                     padding: '12px 14px',
