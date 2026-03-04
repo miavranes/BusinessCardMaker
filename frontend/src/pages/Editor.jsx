@@ -89,6 +89,15 @@ export default function Editor() {
   const [elementsFront, setElementsFront] = useState([]);
   const [elementsBack, setElementsBack]   = useState([]);
 
+  const [dragPreview, setDragPreview] = useState(null); // { element, x, y, targetSide }
+
+  const handleDragElement = (element, coords, targetSide) => {
+    setDragPreview({ element, x: coords.x, y: coords.y, targetSide });
+  };
+  const handleDragEnd = () => {
+    setDragPreview(null);
+  };
+
   const [activeCanvas, setActiveCanvas] = useState('front'); // 'front' | 'back'
 
   const getSetters = (side) =>
@@ -107,6 +116,74 @@ export default function Editor() {
     });
     setSelectedElement(el.id);
     setSelectedSection(null);
+  };
+
+  const addElementToFront = (el) => {
+    DEBUG && console.log('Adding element to front canvas:', el);
+    setElementsFront(prev => [...prev, el]);
+    setSelectedElement(el.id);
+    setSelectedSection(null);
+  };
+
+  const addElementToBack = (el) => {
+    DEBUG && console.log('Adding element to back canvas:', el);
+    setElementsBack(prev => [...prev, el]);
+    setSelectedElement(el.id);
+    setSelectedSection(null);
+  };
+
+  const moveElementToBack = (element) => {
+    DEBUG && console.log('Moving element to back canvas:', element.id);
+    // Remove from front
+    setElementsFront(prev => prev.filter(el => el.id !== element.id));
+    // Add to back
+    setElementsBack(prev => [...prev, element]);
+    setSelectedElement(element.id);
+    setActiveCanvas('back'); // make sure editor/anchor uses correct canvas
+  };
+
+  const moveElementToFront = (element) => {
+    DEBUG && console.log('Moving element to front canvas:', element.id);
+    // Remove from back
+    setElementsBack(prev => prev.filter(el => el.id !== element.id));
+    // Add to front
+    setElementsFront(prev => [...prev, element]);
+    setSelectedElement(element.id);
+    setActiveCanvas('front');
+  };
+
+  const mapSectionToSide = (section, side) => {
+    // when moving logos we need to translate ids so the layout knows about them
+    if (section.type === 'logo') {
+      const newId = side === 'back' ? 'back-logo' : 'front-logo';
+      return { ...section, id: newId };
+    }
+    return section;
+  };
+
+  const moveSectionToBack = (section) => {
+    DEBUG && console.log('Moving section to back canvas:', section.id);
+    setSectionsFront(prev => prev.filter(s => s.id !== section.id));
+    const mapped = mapSectionToSide(section, 'back');
+    setSectionsBack(prev => {
+      // if section already has updated coords, replace existing copy
+      const filtered = prev.filter(s => s.id !== mapped.id);
+      return [...filtered, mapped];
+    });
+    setSelectedSection(mapped);
+    setActiveCanvas('back');
+  };
+  
+  const moveSectionToFront = (section) => {
+    DEBUG && console.log('Moving section to front canvas:', section.id);
+    setSectionsBack(prev => prev.filter(s => s.id !== section.id));
+    const mapped = mapSectionToSide(section, 'front');
+    setSectionsFront(prev => {
+      const filtered = prev.filter(s => s.id !== mapped.id);
+      return [...filtered, mapped];
+    });
+    setSelectedSection(mapped);
+    setActiveCanvas('front');
   };
 
   const updateElement = (id, updates) => {
@@ -278,8 +355,15 @@ export default function Editor() {
               setSelectedSection(null);
               setActiveCanvas('front');
             }}
+            onAddElement={addElementToFront}
             onUpdateElement={updateElement}
+            onMoveElementToOtherCanvas={moveElementToBack}
+            otherCanvasRef={canvasBackRef}
+            onMoveSectionToOtherCanvas={moveSectionToBack}
             onElementSelect={handleSelectElement}
+            onDragElement={handleDragElement}
+            onDragEnd={handleDragEnd}
+            dragPreview={dragPreview}
             backgroundColor={bgFront}
             template={activeTemplate}
             isBack={false}
@@ -311,8 +395,15 @@ export default function Editor() {
               setSelectedSection(null);
               setActiveCanvas('back');
             }}
+            onAddElement={addElementToBack}
             onUpdateElement={updateElement}
+            onMoveElementToOtherCanvas={moveElementToFront}
+            otherCanvasRef={canvasFrontRef}
+            onMoveSectionToOtherCanvas={moveSectionToFront}
             onElementSelect={handleSelectElement}
+            onDragElement={handleDragElement}
+            onDragEnd={handleDragEnd}
+            dragPreview={dragPreview}
             backgroundColor={bgBack}
             template={activeTemplate}
             isBack={true}

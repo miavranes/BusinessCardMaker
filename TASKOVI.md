@@ -32,7 +32,7 @@
 - [x] Dodati "Add Image" dugme
 - [ ] Implementirati file upload za slike (PNG, JPG, JPEG, SVG)
 - [ ] Dodati "Add Logo" dugme
-- [ ] Implementirati prikaz slika na Canvas-u
+- [x] Implementirati prikaz slika na Canvas-u
 - [x] Dodati kontrole za resize slika
 - [ ] Validacija formata fajlova
 
@@ -40,8 +40,8 @@
 
 - [x] Kreirati biblioteku grafičkih elemenata
 - [x] Dodati "Graphics" dugme u Navbar
-- [ ] Implementirati dodavanje grafike na Canvas
-- [ ] Omogućiti promenu boje i veličine grafike
+- [x] Implementirati dodavanje grafike na Canvas
+- [x] Omogućiti promenu boje i veličine grafike
 
 ## 6. QR Kod
 

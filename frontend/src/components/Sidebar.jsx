@@ -117,6 +117,17 @@ export default function Sidebar({
   const [iconColor, setIconColor] = useState('#8b5cf6');
   const [search, setSearch] = useState('');
 
+  const handleIconDragStart = (e) => {
+    const dataUrl = svgFromButton(e.currentTarget);
+    if (!dataUrl) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/x-icon-svg', dataUrl);
+    e.dataTransfer.setData('text/plain', dataUrl);
+  };
+
   const addIcon = (e) => {
     const dataUrl = svgFromButton(e.currentTarget);
     if (!dataUrl) {
@@ -251,6 +262,8 @@ export default function Sidebar({
             key={name}
             className="sb-icon-btn"
             onClick={addIcon}
+            onDragStart={handleIconDragStart}
+            draggable
             title={name}
           >
             <Icon size={22} color={iconColor} strokeWidth={1.8} />

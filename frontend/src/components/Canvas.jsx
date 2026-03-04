@@ -4,12 +4,20 @@ import '../css/Canvas.css';
 const DEBUG = false;
 
 const Canvas = forwardRef(({
-  elements, selectedElement, setSelectedElement, onUpdateElement,
+  elements, selectedElement, setSelectedElement, onUpdateElement, onAddElement,
   backgroundColor, template, isBack, showPreview,
   selectedSection, onSelectSection, onUpdateSection,
   userData, sections,
   // new callback for notifying parent when an element is clicked
   onElementSelect,
+  // callbacks for cross-canvas moves
+  onMoveElementToOtherCanvas,
+  onMoveSectionToOtherCanvas,
+  otherCanvasRef,
+  // callbacks for drag preview across canvases
+  onDragElement,
+  onDragEnd,
+  dragPreview,
 }, ref) => {
   const containerRef = useRef(null);
   const [dragging, setDragging] = useState(null);
@@ -17,6 +25,7 @@ const Canvas = forwardRef(({
   const [containerWidth, setContainerWidth] = useState(400);
   const [resizing, setResizing] = useState(null);
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [dragOverCanvas, setDragOverCanvas] = useState(false);
 
   const CANVAS_W = 580;
   const CANVAS_H = 330;
@@ -163,7 +172,21 @@ const Canvas = forwardRef(({
         });
       }
     });
-  }, [elements, selectedElement, backgroundColor, template, showPreview, sections, userData]);
+
+    // render a ghost of the dragged element if this canvas is the drop target
+    if (dragPreview) {
+      const sideName = isBack ? 'back' : 'front';
+      if (dragPreview.targetSide === sideName) {
+        const ghost = { ...dragPreview.element, x: dragPreview.x, y: dragPreview.y };
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        if (ghost.type === 'text') drawText(ctx, ghost);
+        else if (ghost.type === 'shape') drawShape(ctx, ghost);
+        else if (ghost.type === 'image' && ghost.imgElement) drawImage(ctx, ghost);
+        ctx.restore();
+      }
+    }
+  }, [elements, selectedElement, backgroundColor, template, showPreview, sections, userData, dragPreview]);
 
   const drawText = (ctx, el) => {
     ctx.save();
@@ -309,6 +332,106 @@ const Canvas = forwardRef(({
         setSelectedElement(el.id);
         setDragging(el.id);
         setOffset({ x: x - el.x, y: y - el.y });
+        
+        // Set up global drag listeners
+        const canvasRect = ref.current.getBoundingClientRect();
+        const startMouseX = e.clientX;
+        const startMouseY = e.clientY;
+        const startElX = el.x;
+        const startElY = el.y;
+        
+        const onGlobalMouseMove = (moveEvent) => {
+          const dx = moveEvent.clientX - startMouseX;
+          const dy = moveEvent.clientY - startMouseY;
+          const newX = startElX + (dx / canvasRect.width) * CANVAS_W;
+          const newY = startElY + (dy / canvasRect.height) * CANVAS_H;
+          onUpdateElement(el.id, { x: newX, y: newY });
+
+          // optionally notify parent for drag preview
+          if (typeof onDragElement === 'function') {
+            // determine which canvas the pointer is currently over
+            let targetSide = isBack ? 'back' : 'front';
+            let targetRect = canvasRect;
+
+            const canvasSides = document.querySelectorAll('.canvas-side');
+            canvasSides.forEach(side => {
+              const cr = side.getBoundingClientRect();
+              if (moveEvent.clientX >= cr.left && moveEvent.clientX <= cr.right &&
+                  moveEvent.clientY >= cr.top && moveEvent.clientY <= cr.bottom) {
+                // identify side name based on whether this side contains our canvas
+                if (side.contains(ref.current)) {
+                  targetSide = isBack ? 'back' : 'front';
+                  targetRect = canvasRect;
+                } else {
+                  targetSide = isBack ? 'front' : 'back';
+                  // set targetRect to other canvas's rect for normalization
+                  const otherCanvas = side.querySelector('canvas');
+                  if (otherCanvas) targetRect = otherCanvas.getBoundingClientRect();
+                }
+              }
+            });
+
+            const normX = (moveEvent.clientX - targetRect.left) * (CANVAS_W / targetRect.width);
+            const normY = (moveEvent.clientY - targetRect.top) * (CANVAS_H / targetRect.height);
+            onDragElement(el, { x: normX, y: normY }, targetSide);
+          }
+        };
+        
+        const onGlobalMouseUp = (upEvent) => {
+          window.removeEventListener('mousemove', onGlobalMouseMove);
+          window.removeEventListener('mouseup', onGlobalMouseUp);
+          if (typeof onDragEnd === 'function') onDragEnd();
+          
+          // Check if dropped on other canvas
+          if (onMoveElementToOtherCanvas) {
+            const canvasSides = document.querySelectorAll('.canvas-side');
+            let otherSideElement = null;
+            
+            for (const side of canvasSides) {
+              if (side.contains(ref.current)) {
+                for (const otherSide of canvasSides) {
+                  if (otherSide !== side) {
+                    otherSideElement = otherSide;
+                    break;
+                  }
+                }
+                break;
+              }
+            }
+            
+            if (otherSideElement) {
+              const otherRect = otherSideElement.getBoundingClientRect();
+              DEBUG && console.log('Drop coords:', upEvent.clientX, upEvent.clientY, 'Other canvas rect:', otherRect);
+              
+              if (upEvent.clientX >= otherRect.left && upEvent.clientX <= otherRect.right &&
+                  upEvent.clientY >= otherRect.top && upEvent.clientY <= otherRect.bottom) {
+                DEBUG && console.log('Moving element to other canvas:', el.id);
+                // normalize coordinates relative to the destination canvas
+                const otherCanvasEl = otherSideElement.querySelector('canvas');
+                let movedEl = el;
+                if (otherCanvasEl) {
+                  const cr = otherCanvasEl.getBoundingClientRect();
+                  const normX = (upEvent.clientX - cr.left) * (CANVAS_W / cr.width);
+                  const normY = (upEvent.clientY - cr.top) * (CANVAS_H / cr.height);
+                  movedEl = { ...el, x: normX, y: normY };
+                }
+                onMoveElementToOtherCanvas(movedEl);
+              }
+            }
+          }
+          
+          setDragging(null);
+        };
+        
+        window.addEventListener('mousemove', onGlobalMouseMove);
+        window.addEventListener('mouseup', onGlobalMouseUp);
+        
+        // show preview immediately at start position
+        if (typeof onDragElement === 'function') {
+          const initialSide = isBack ? 'back' : 'front';
+          onDragElement(el, { x: startElX, y: startElY }, initialSide);
+        }
+
         if (typeof onElementSelect === 'function') {
           const parentRect = containerRef.current.getBoundingClientRect();
           const scale = parentRect.width / CANVAS_W;
@@ -323,8 +446,6 @@ const Canvas = forwardRef(({
     }
     setSelectedElement(null);
   };
-
-  const dragThrottleRef = useRef({ last: 0, pending: null });
 
   const handleMouseMove = (e) => {
     if (showPreview) return;
@@ -360,42 +481,65 @@ const Canvas = forwardRef(({
       onUpdateElement(resizing.id, { x: newX, y: newY, width: newWidth, height: newHeight });
       return;
     }
+  };
 
-    if (!dragging) return;
-    const { x, y } = getMousePos(e);
-    const now = performance.now();
-    const coords = { x: x - offset.x, y: y - offset.y };
+  const handleDragOver = (e) => {
+    if (showPreview) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDragOverCanvas(true);
+  };
 
-    // throttle to ~60fps to reduce state churn
-    if (now - dragThrottleRef.current.last > 16) {
-      onUpdateElement(dragging, coords);
-      dragThrottleRef.current.last = now;
-    } else {
-      dragThrottleRef.current.pending = coords;
+  const handleDragLeave = (e) => {
+    if (e.target === ref.current || e.target === containerRef.current) {
+      setDragOverCanvas(false);
     }
   };
 
-  // flush pending drag position on animation frame
-  useEffect(() => {
-    let anim;
-    const tick = () => {
-      if (dragThrottleRef.current.pending && dragging) {
-        onUpdateElement(dragging, dragThrottleRef.current.pending);
-        dragThrottleRef.current.last = performance.now();
-        dragThrottleRef.current.pending = null;
-      }
-      anim = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => cancelAnimationFrame(anim);
-  }, [dragging]);
+  const handleDrop = (e) => {
+    if (showPreview) return;
+    e.preventDefault();
+    setDragOverCanvas(false);
 
-  const handleMouseUp = () => {
-    setDragging(null);
-    setResizing(null);
+    const dataUrl = e.dataTransfer.getData('application/x-icon-svg');
+    if (!dataUrl) return;
+
+    const { x, y } = getMousePos(e);
+    const W = 60;
+    const H = 60;
+
+    const img = new window.Image();
+    img.onload = () => {
+      const newElement = {
+        id: `icon-${Date.now()}`,
+        type: 'image',
+        x: x - W / 2,
+        y: y - H / 2,
+        width: W,
+        height: H,
+        imgElement: img,
+        src: dataUrl,
+        opacity: 1,
+      };
+      onAddElement(newElement);
+    };
+    img.onerror = () => console.error('Failed to load dropped SVG');
+    img.src = dataUrl;
   };
 
   const sectionDragRef = useRef(null);
+
+  // Global mouseup handler for resizing
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      setResizing(null);
+    };
+    
+    if (resizing) {
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+      return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+    }
+  }, [resizing]);
 
   const handleSectionMouseDown = (e, section) => {
     if (showPreview) return;
@@ -409,10 +553,12 @@ const Canvas = forwardRef(({
     const startSectionX = section.x;
     const startSectionY = section.y;
 
-    sectionDragRef.current = { startX, startY, startSectionX, startSectionY, section };
+    sectionDragRef.current = { startX, startY, startSectionX, startSectionY, section, lastX: startX, lastY: startY };
 
     const onMove = (moveEvent) => {
       if (!sectionDragRef.current) return;
+      sectionDragRef.current.lastX = moveEvent.clientX;
+      sectionDragRef.current.lastY = moveEvent.clientY;
       const dx = (moveEvent.clientX - startX) / wrapperRect.width;
       const dy = (moveEvent.clientY - startY) / wrapperRect.height;
 
@@ -422,7 +568,43 @@ const Canvas = forwardRef(({
       onUpdateSection(section.id, { x: newX, y: newY });
     };
 
-    const onUp = () => {
+    const onUp = (upEvent) => {
+      // check for drop on other canvas
+      if (onMoveSectionToOtherCanvas) {
+        const canvasSides = document.querySelectorAll('.canvas-side');
+        let otherSideElement = null;
+        for (const side of canvasSides) {
+          if (side.contains(ref.current)) {
+            for (const otherSide of canvasSides) {
+              if (otherSide !== side) {
+                otherSideElement = otherSide;
+                break;
+              }
+            }
+            break;
+          }
+        }
+        if (otherSideElement) {
+          const otherRect = otherSideElement.getBoundingClientRect();
+          const clientX = upEvent.clientX || sectionDragRef.current.lastX;
+          const clientY = upEvent.clientY || sectionDragRef.current.lastY;
+          if (clientX >= otherRect.left && clientX <= otherRect.right &&
+              clientY >= otherRect.top && clientY <= otherRect.bottom) {
+            // drop happened on the other side; normalize coordinates
+            const otherCanvasEl = otherSideElement.querySelector('canvas');
+            let newSection;
+            if (otherCanvasEl) {
+              const cr = otherCanvasEl.getBoundingClientRect();
+              const normX = (clientX - cr.left) * (CANVAS_W / cr.width);
+              const normY = (clientY - cr.top) * (CANVAS_H / cr.height);
+              newSection = { ...sectionDragRef.current.section, x: normX, y: normY };
+            } else {
+              newSection = sectionDragRef.current.section;
+            }
+            onMoveSectionToOtherCanvas(newSection);
+          }
+        }
+      }
       sectionDragRef.current = null;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
@@ -432,6 +614,7 @@ const Canvas = forwardRef(({
     window.addEventListener('mouseup', onUp);
   };
 
+  // re-add resize handler below
   const handleResizeMouseDown = (e, section, corner) => {
     e.stopPropagation();
 
@@ -468,7 +651,7 @@ const Canvas = forwardRef(({
         const maxDy = startHeight - 0.05;
         const constrainedDy = Math.max(-startSectionY, Math.min(maxDy, dy));
         newY = startSectionY + constrainedDy;
-        newHeight = startHeight - constrainedDy;
+        newHeight = startHeight - newHeight;
       }
 
       onUpdateSection(section.id, {
@@ -500,14 +683,17 @@ const Canvas = forwardRef(({
           height={CANVAS_H}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           className={`canvas-element ${showPreview ? '' : 'draggable'}`}
           style={{
             position: 'relative',
             zIndex: 2,           // bring canvas above layout so added elements are visible
             background: template ? 'transparent' : backgroundColor,
             cursor: resizing ? `${resizing.corner}-resize` : (dragging ? 'grabbing' : 'default'),
+            opacity: dragOverCanvas ? 0.7 : 1,
+            transition: dragOverCanvas ? 'opacity 0.15s' : 'none',
           }}
         />
 

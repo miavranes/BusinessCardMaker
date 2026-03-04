@@ -4,15 +4,21 @@ import React from 'react';
 
 export default function FloatingEditor({
   selectedSection,
+  selectedElement,
   anchorRect,
   userData,
   onUpdateUserData,
   onUpdateSection,
+  onUpdateElement,
   onClose,
   onLogoUpload,
-  onDeleteSection
+  onDeleteSection,
+  onDeleteElement
 }) {
-  if (!selectedSection || !anchorRect) return null;
+  if ((!selectedSection && !selectedElement) || !anchorRect) return null;
+
+  const editingSection = !!selectedSection;
+  const editingElement = !!selectedElement;
 
   const PANEL_W = 340;
   const PANEL_H = 600;
@@ -39,16 +45,16 @@ export default function FloatingEditor({
   const isOnLeft = left + PANEL_W < anchorRect.left;
   const isCentered = !isOnRight && !isOnLeft;
 
-  const isLogo = selectedSection.type === 'logo';
-  const isText = selectedSection.type === 'text';
-  const isNameField = selectedSection.field === 'name';
+  const isLogo = editingSection && selectedSection.type === 'logo';
+  const isText = editingSection && selectedSection.type === 'text';
+  const isNameField = editingSection && selectedSection.field === 'name';
 
   const getValue = (field) => userData[field] ?? '';
-  const sectionLabel = selectedSection.label || selectedSection.id;
+  const sectionLabel = editingSection ? (selectedSection.label || selectedSection.id) : (selectedElement?.id || 'Element');
 
   const normalize = (val) => Math.max(0.05, Math.min(1, val));
 
-  const currentValue = getValue(selectedSection.field) || '';
+  const currentValue = editingSection ? getValue(selectedSection.field) || '' : '';
   const nonEmptyLines = currentValue.split('\n').filter(l => l.trim() !== '');
   const hasBullets = nonEmptyLines.length > 0 && nonEmptyLines.every(l => l.startsWith('• '));
 
@@ -84,12 +90,34 @@ export default function FloatingEditor({
           <span className="fe-header-title">{sectionLabel}</span>
         </div>
         <div className="fe-header-actions">
-          <button className="fe-delete" onClick={() => { onDeleteSection(selectedSection.id); onClose(); }}>Delete</button>
+          <button className="fe-delete" onClick={() => {
+            if (editingSection) { onDeleteSection(selectedSection.id); }
+            else if (editingElement) { onDeleteElement(selectedElement.id); }
+            onClose();
+          }}>Delete</button>
           <button className="fe-close" onClick={onClose}>Close</button>
         </div>
       </div>
 
       <div className="fe-body">
+
+        {editingElement && selectedElement?.type === 'text' && (
+          <>
+            <div className="fe-group">
+              <label className="fe-label">Content</label>
+              <textarea
+                rows="2"
+                value={selectedElement.content || ''}
+                onChange={e => onUpdateElement(selectedElement.id, { content: e.target.value })}
+                style={{
+                  width: '100%', padding: '12px 14px', border: '2px solid #e2e8f0',
+                  borderRadius: '14px', fontSize: '14px', fontFamily: 'inherit', resize: 'none'
+                }}
+              />
+            </div>
+            <div className="fe-divider" />
+          </>
+        )}
 
         {isLogo && (
           <>
