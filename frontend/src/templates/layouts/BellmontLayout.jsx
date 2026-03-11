@@ -34,12 +34,15 @@ export const bellmontTemplate = {
 const findSection = (sections, baseId) =>
   sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
 
-const findLogoSection = (sections, isBack) => {
+const findLogoSections = (sections, isBack) => {
   const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
   const otherPrefix = isBack ? 'front-logo' : 'back-logo';
-  return (
-    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
-    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  return sections.filter(
+    s => s.type === 'logo' && (
+      s.id === ownPrefix ||
+      s.id.startsWith(`${ownPrefix}-moved-`) ||
+      s.id.startsWith(`${otherPrefix}-moved-`)
+    )
   );
 };
 
@@ -78,15 +81,16 @@ export default function BellmontLayout({ template, isBack = false, containerWidt
     </div>
   );
 
-  const logoSection = findLogoSection(sections, isBack);
-  const logoEl = logoSection ? (
+  const logoSections = findLogoSections(sections, isBack);
+  const logoEls = logoSections.map(logoSection => (
     <img
+      key={logoSection.id}
       src={data.logoUrl || logoIcon}
       alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
       style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
     />
-  ) : null;
+  ));
 
   const movedInSections = findMovedInSections(sections, isBack);
 
@@ -99,29 +103,45 @@ export default function BellmontLayout({ template, isBack = false, containerWidt
 
     return (
       <div style={{ width: '100%', height: '100%', background: t.bgBack, position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
-        {logoEl}
-        {backName    && <div onClick={(e) => handleClick(e, backName)}    style={{ ...getSectionPos(sections, backName.id),    ...getSectionStyle(backName),    display: 'flex', alignItems: 'center' }}>{data.firstName} {data.lastName}</div>}
-        {backTitle   && <div onClick={(e) => handleClick(e, backTitle)}   style={{ ...getSectionPos(sections, backTitle.id),   ...getSectionStyle(backTitle),   display: 'flex', alignItems: 'center', opacity: 0.8 }}>{data.title}</div>}
-        {backPhone   && <div onClick={(e) => handleClick(e, backPhone)}   style={{ ...getSectionPos(sections, backPhone.id),   ...getSectionStyle(backPhone),   display: 'flex', alignItems: 'center' }}>{data.phone}</div>}
-        {backEmail   && <div onClick={(e) => handleClick(e, backEmail)}   style={{ ...getSectionPos(sections, backEmail.id),   ...getSectionStyle(backEmail),   display: 'flex', alignItems: 'center' }}>{data.email}</div>}
-        {backWebsite && <div onClick={(e) => handleClick(e, backWebsite)} style={{ ...getSectionPos(sections, backWebsite.id), ...getSectionStyle(backWebsite), display: 'flex', alignItems: 'center' }}>{data.website}</div>}
+        {logoEls}
+        {backName && (
+          <div onClick={(e) => handleClick(e, backName)}
+            style={{ ...getSectionPos(sections, backName.id), ...getSectionStyle(backName), display: 'flex', alignItems: 'center' }}>
+            {data.firstName} {data.lastName}
+          </div>
+        )}
+        {backTitle && (
+          <div onClick={(e) => handleClick(e, backTitle)}
+            style={{ ...getSectionPos(sections, backTitle.id), ...getSectionStyle(backTitle), display: 'flex', alignItems: 'center', opacity: 0.8 }}>
+            {data.title}
+          </div>
+        )}
+        {backPhone && (
+          <div onClick={(e) => handleClick(e, backPhone)}
+            style={{ ...getSectionPos(sections, backPhone.id), ...getSectionStyle(backPhone), display: 'flex', alignItems: 'center' }}>
+            {data.phone}
+          </div>
+        )}
+        {backEmail && (
+          <div onClick={(e) => handleClick(e, backEmail)}
+            style={{ ...getSectionPos(sections, backEmail.id), ...getSectionStyle(backEmail), display: 'flex', alignItems: 'center' }}>
+            {data.email}
+          </div>
+        )}
+        {backWebsite && (
+          <div onClick={(e) => handleClick(e, backWebsite)}
+            style={{ ...getSectionPos(sections, backWebsite.id), ...getSectionStyle(backWebsite), display: 'flex', alignItems: 'center' }}>
+            {data.website}
+          </div>
+        )}
         {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
   }
 
-  const frontLogoSection = findSection(sections, 'front-logo');
-
   return (
     <div style={{ width: '100%', height: '100%', background: t.bg, position: 'relative', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', boxSizing: 'border-box' }}>
-      {frontLogoSection && (
-        <img
-          src={data.logoUrl || logoIcon}
-          alt="Logo"
-          onClick={(e) => handleClick(e, frontLogoSection)}
-          style={{ ...getSectionPos(sections, frontLogoSection.id), objectFit: 'contain', cursor: 'pointer', filter: data.logoUrl ? 'none' : 'brightness(0) invert(1)' }}
-        />
-      )}
+      {logoEls}
       {movedInSections.map(s => renderTextSection(s))}
     </div>
   );

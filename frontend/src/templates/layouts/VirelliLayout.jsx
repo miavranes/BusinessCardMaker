@@ -31,10 +31,10 @@ export const virelliTemplate = {
     { id: 'front-title', type: 'text', field: 'title', label: 'Title', x: 0.05, y: 0.80, width: 0.90, height: 0.14, fontSize: 9,  fontFamily: 'Nunito, sans-serif', color: '#C4A574', letterSpacing: 0.15, textTransform: 'uppercase', align: 'center' },
   ],
   sectionsBack: [
-    { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    x: 0.06, y: 0.08, width: 0.60, height: 0.22, fontSize: 16, fontFamily: 'Nunito, sans-serif', fontWeight: '300', color: '#3d483b', letterSpacing: 0.5 },
-    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   x: 0.06, y: 0.38, width: 0.68, height: 0.14, fontSize: 9,  fontFamily: 'Nunito, sans-serif', fontWeight: '300', color: '#3d483b' },
-    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   x: 0.06, y: 0.52, width: 0.68, height: 0.14, fontSize: 9,  fontFamily: 'Nunito, sans-serif', fontWeight: '300', color: '#3d483b' },
-    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.06, y: 0.66, width: 0.68, height: 0.14, fontSize: 9,  fontFamily: 'Nunito, sans-serif', fontWeight: '300', color: '#3d483b' },
+    { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    x: 0.06, y: 0.08, width: 0.60, height: 0.20, fontSize: 16, fontFamily: 'Nunito, sans-serif', fontWeight: '300', color: '#3d483b', letterSpacing: 0.5 },
+    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   x: 0.06, y: 0.36, width: 0.68, height: 0.12, fontSize: 9,  fontFamily: 'Nunito, sans-serif', fontWeight: '300', color: '#3d483b' },
+    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   x: 0.06, y: 0.50, width: 0.68, height: 0.12, fontSize: 9,  fontFamily: 'Nunito, sans-serif', fontWeight: '300', color: '#3d483b' },
+    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.06, y: 0.64, width: 0.68, height: 0.12, fontSize: 9,  fontFamily: 'Nunito, sans-serif', fontWeight: '300', color: '#3d483b' },
   ],
 };
 
@@ -47,12 +47,15 @@ const FIELD_ICONS = { phone: PhoneIcon, email: MailIcon, website: WebIcon };
 const findSection = (sections, baseId) =>
   sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
 
-const findLogoSection = (sections, isBack) => {
+const findLogoSections = (sections, isBack) => {
   const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
   const otherPrefix = isBack ? 'front-logo' : 'back-logo';
-  return (
-    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
-    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  return sections.filter(
+    s => s.type === 'logo' && (
+      s.id === ownPrefix ||
+      s.id.startsWith(`${ownPrefix}-moved-`) ||
+      s.id.startsWith(`${otherPrefix}-moved-`)
+    )
   );
 };
 
@@ -95,15 +98,16 @@ export default function VirelliLayout({ template, isBack = false, containerWidth
     );
   };
 
-  const logoSection = findLogoSection(sections, isBack);
-  const logoEl = logoSection ? (
+  const logoSections = findLogoSections(sections, isBack);
+  const logoEls = logoSections.map(logoSection => (
     <img
+      key={logoSection.id}
       src={data.logoUrl || logo}
       alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
-      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer', filter: 'brightness(0) invert(1)' }}
+      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
     />
-  ) : null;
+  ));
 
   const movedInSections = findMovedInSections(sections, isBack);
 
@@ -117,19 +121,15 @@ export default function VirelliLayout({ template, isBack = false, containerWidth
 
     return (
       <div style={{ ...base, background: t.bg }}>
-        <div style={{ position: 'absolute', top: `${20 * scale}px`, right: `${20 * scale}px`, width: `${60 * scale}px`, height: `${60 * scale}px` }}>
+        <div style={{ position: 'absolute', top: `${20 * scale}px`, right: `${20 * scale}px`, width: `${60 * scale}px`, height: `${60 * scale}px`, pointerEvents: 'none', zIndex: 0 }}>
           <img src={qrCode} alt="QR" style={{ width: '100%', height: '100%' }} />
         </div>
 
-        {backName    && <div onClick={(e) => handleClick(e, backName)}    style={{ ...getSectionPos(sections, backName.id),    ...getSectionStyle(backName),    display: 'flex', alignItems: 'center' }}>{data.firstName}<br />{data.lastName}</div>}
+        {logoEls}
+        {backName    && renderTextSection(backName)}
         {backPhone   && renderTextSection(backPhone)}
         {backEmail   && renderTextSection(backEmail)}
         {backWebsite && renderTextSection(backWebsite)}
-
-        <div style={{ position: 'absolute', bottom: `${10 * scale}px`, left: `${10 * scale}px`, opacity: 0.3 }}>
-          <img src={data.logoUrl || logo} alt="Logo" style={{ height: `${50 * scale}px`, width: 'auto' }} />
-        </div>
-
         {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
@@ -140,10 +140,20 @@ export default function VirelliLayout({ template, isBack = false, containerWidth
 
   return (
     <div style={{ ...base, background: t.bgBack }}>
-      {logoEl}
-      {frontName  && <div onClick={(e) => handleClick(e, frontName)}  style={{ ...getSectionPos(sections, frontName.id),  ...getSectionStyle(frontName),  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.firstName} {data.lastName}</div>}
-      {frontTitle && <div onClick={(e) => handleClick(e, frontTitle)} style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.title}</div>}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${3 * scale}px`, background: t.accent }} />
+      {logoEls}
+      {frontName && (
+        <div onClick={(e) => handleClick(e, frontName)}
+          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {data.firstName} {data.lastName}
+        </div>
+      )}
+      {frontTitle && (
+        <div onClick={(e) => handleClick(e, frontTitle)}
+          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {data.title}
+        </div>
+      )}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${3 * scale}px`, background: t.accent, pointerEvents: 'none' }} />
       {movedInSections.map(s => renderTextSection(s))}
     </div>
   );

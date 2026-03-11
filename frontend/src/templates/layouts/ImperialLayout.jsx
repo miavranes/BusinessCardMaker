@@ -40,12 +40,15 @@ export const imperialTemplate = {
 const findSection = (sections, baseId) =>
   sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
 
-const findLogoSection = (sections, isBack) => {
+const findLogoSections = (sections, isBack) => {
   const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
   const otherPrefix = isBack ? 'front-logo' : 'back-logo';
-  return (
-    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
-    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  return sections.filter(
+    s => s.type === 'logo' && (
+      s.id === ownPrefix ||
+      s.id.startsWith(`${ownPrefix}-moved-`) ||
+      s.id.startsWith(`${otherPrefix}-moved-`)
+    )
   );
 };
 
@@ -74,7 +77,7 @@ export default function ImperialLayout({ template, isBack = false, containerWidt
     return data[section.field] || '';
   };
 
-  const renderTextSection = (section) => (
+  const renderLabeledSection = (section) => (
     <div
       key={section.id}
       onClick={(e) => handleClick(e, section)}
@@ -91,19 +94,31 @@ export default function ImperialLayout({ template, isBack = false, containerWidt
     </div>
   );
 
-  const logoSection = findLogoSection(sections, isBack);
-  const logoEl = logoSection ? (
+ const renderTextSection = (section) => (
+    <div
+      key={section.id}
+      onClick={(e) => handleClick(e, section)}
+      style={{
+        ...getSectionPos(sections, section.id),
+        ...getSectionStyle(section),
+        display: 'flex', alignItems: 'center',
+        letterSpacing: `${0.03 * scale}em`,
+      }}
+    >
+      {getContent(section)}
+    </div>
+  );
+
+  const logoSections = findLogoSections(sections, isBack);
+  const logoEls = logoSections.map(logoSection => (
     <img
+      key={logoSection.id}
       src={data.logoUrl || logoIcon}
       alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
-      style={{
-        ...getSectionPos(sections, logoSection.id),
-        objectFit: 'contain', cursor: 'pointer',
-        filter: data.logoUrl ? 'none' : 'brightness(0) invert(1) opacity(0.25)',
-      }}
+      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
     />
-  ) : null;
+  ));
 
   const movedInSections = findMovedInSections(sections, isBack);
 
@@ -115,7 +130,7 @@ export default function ImperialLayout({ template, isBack = false, containerWidt
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative', boxSizing: 'border-box',
       }}>
-        {logoEl}
+        {logoEls}
         {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
@@ -130,7 +145,7 @@ export default function ImperialLayout({ template, isBack = false, containerWidt
 
   return (
     <div style={{ width: '100%', height: '100%', background: t.bg, position: 'relative', boxSizing: 'border-box' }}>
-      {logoEl}
+      {logoEls}
 
       {backName && (
         <div onClick={(e) => handleClick(e, backName)}
@@ -146,10 +161,10 @@ export default function ImperialLayout({ template, isBack = false, containerWidt
         </div>
       )}
 
-      {backPhone     && renderTextSection(backPhone)}
-      {backEmail     && renderTextSection(backEmail)}
-      {backLinkedin  && renderTextSection(backLinkedin)}
-      {backInstagram && renderTextSection(backInstagram)}
+      {backPhone     && renderLabeledSection(backPhone)}
+      {backEmail     && renderLabeledSection(backEmail)}
+      {backLinkedin  && renderLabeledSection(backLinkedin)}
+      {backInstagram && renderLabeledSection(backInstagram)}
 
       {movedInSections.map(s => renderTextSection(s))}
 

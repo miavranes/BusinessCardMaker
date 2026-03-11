@@ -70,11 +70,10 @@
 
 ## 9. Undo/Redo
 
-- [ ] Implementirati history state (max 20 koraka)
-- [ ] Dodati Undo dugme
-- [ ] Dodati Redo dugme
-- [ ] Implementirati Ctrl+Z i Ctrl+Y shortcuts
-- [ ] Ažurirati history pri svakoj promeni
+- [x] Dodati Undo dugme
+- [x] Dodati Redo dugme
+- [x] Implementirati Ctrl+Z i Ctrl+Y shortcuts
+- [x] Ažurirati history pri svakoj promeni
 
 ## 10. Animacije
 

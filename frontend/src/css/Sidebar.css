@@ -530,3 +530,94 @@
     transform: translateX(0);
   }
 }
+
+.sb-undo-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px;
+}
+
+.sb-undo-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.8);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.sb-undo-btn:hover:not(.disabled) {
+  background: rgba(255,255,255,0.12);
+}
+
+.sb-undo-btn.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sb-bg-row {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 8px;
+}
+
+.sb-bg-swatch-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  flex: 1;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.sb-bg-swatch-label:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.sb-bg-swatch-label--active {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.sb-bg-swatch-label .sb-swatch-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sb-bg-swatch-label .sb-swatch-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  position: relative;
+  overflow: hidden;
+  display: block;
+  cursor: pointer;
+}
+
+.sb-bg-swatch-label .sb-swatch-wrap input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}

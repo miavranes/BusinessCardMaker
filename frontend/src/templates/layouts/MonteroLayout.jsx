@@ -23,16 +23,16 @@ export const monteroTemplate = {
     website: "www.miavranes.com",
   },
   sectionsFront: [
-    { id: 'front-logo',  type: 'logo', label: 'Logo' },
-    { id: 'front-name',  type: 'text', field: 'name',  label: 'Name',    fontSize: 32, fontFamily: 'Cormorant Garamond, serif', fontWeight: '400', color: '#4a4a4a' },
-    { id: 'front-title', type: 'text', field: 'title', label: 'Tagline', fontSize: 8,  fontFamily: 'Montserrat, sans-serif', color: '#8a8a8a' },
+    { id: 'front-logo',  type: 'logo', label: 'Logo',    x: 0.35, y: 0.10, width: 0.30, height: 0.30 },
+    { id: 'front-name',  type: 'text', field: 'name',  label: 'Name',    x: 0.10, y: 0.48, width: 0.80, height: 0.18, fontSize: 32, fontFamily: 'Cormorant Garamond, serif', fontWeight: '400', color: '#4a4a4a' },
+    { id: 'front-title', type: 'text', field: 'title', label: 'Tagline', x: 0.10, y: 0.68, width: 0.80, height: 0.10, fontSize: 8,  fontFamily: 'Montserrat, sans-serif', color: '#8a8a8a' },
   ],
   sectionsBack: [
-    { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    fontSize: 22, fontFamily: 'Montserrat, sans-serif', fontWeight: '400', color: '#4a4a4a' },
-    { id: 'back-title',   type: 'text', field: 'title',   label: 'Title',   fontSize: 12, fontFamily: 'Montserrat, sans-serif', fontStyle: 'italic', color: '#8a8a8a' },
-    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   fontSize: 10, color: '#4a4a4a' },
-    { id: 'back-website', type: 'text', field: 'website', label: 'Website', fontSize: 10, color: '#4a4a4a' },
-    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   fontSize: 10, color: '#4a4a4a' },
+    { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    x: 0.10, y: 0.08, width: 0.80, height: 0.16, fontSize: 22, fontFamily: 'Montserrat, sans-serif', fontWeight: '400', color: '#4a4a4a' },
+    { id: 'back-title',   type: 'text', field: 'title',   label: 'Title',   x: 0.10, y: 0.25, width: 0.80, height: 0.10, fontSize: 12, fontFamily: 'Montserrat, sans-serif', fontStyle: 'italic', color: '#8a8a8a' },
+    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   x: 0.10, y: 0.55, width: 0.80, height: 0.10, fontSize: 10, fontFamily: 'Montserrat, sans-serif', color: '#4a4a4a' },
+    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.10, y: 0.67, width: 0.80, height: 0.10, fontSize: 10, fontFamily: 'Montserrat, sans-serif', color: '#4a4a4a' },
+    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   x: 0.10, y: 0.79, width: 0.80, height: 0.10, fontSize: 10, fontFamily: 'Montserrat, sans-serif', color: '#4a4a4a' },
   ],
 };
 
@@ -48,12 +48,15 @@ const VerticalLines = ({ color, scale }) => (
 const findSection = (sections, baseId) =>
   sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
 
-const findLogoSection = (sections, isBack) => {
+const findLogoSections = (sections, isBack) => {
   const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
   const otherPrefix = isBack ? 'front-logo' : 'back-logo';
-  return (
-    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
-    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  return sections.filter(
+    s => s.type === 'logo' && (
+      s.id === ownPrefix ||
+      s.id.startsWith(`${ownPrefix}-moved-`) ||
+      s.id.startsWith(`${otherPrefix}-moved-`)
+    )
   );
 };
 
@@ -92,22 +95,23 @@ export default function MonteroLayout({ template, isBack = false, containerWidth
     </div>
   );
 
-  const logoSection = findLogoSection(sections, isBack);
-  const logoEl = logoSection ? (
+  const logoSections = findLogoSections(sections, isBack);
+  const logoEls = logoSections.map(logoSection => (
     <img
+      key={logoSection.id}
       src={data.logoUrl || logoIcon}
       alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
       style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
     />
-  ) : null;
+  ));
 
   const movedInSections = findMovedInSections(sections, isBack);
 
   const baseStyle = {
     width: '100%', height: '100%', background: t.bg,
-    padding: `${50 * scale}px`, boxSizing: 'border-box',
-    position: 'relative', overflow: 'hidden', display: 'flex', flexShrink: 0,
+    position: 'relative', overflow: 'hidden',
+    flexShrink: 0, boxSizing: 'border-box',
   };
 
   if (isBack) {
@@ -118,19 +122,16 @@ export default function MonteroLayout({ template, isBack = false, containerWidth
     const backEmail   = findSection(sections, 'back-email');
 
     return (
-      <div style={{ ...baseStyle, flexDirection: 'column', justifyContent: 'space-between' }}>
-        <div>
-          {backName  && <div onClick={(e) => handleClick(e, backName)}  style={{ ...getSectionStyle(backName),  marginBottom: `${4 * scale}px` }}>{data.firstName} {data.lastName}</div>}
-          {backTitle && <div onClick={(e) => handleClick(e, backTitle)} style={getSectionStyle(backTitle)}>{data.title}</div>}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: `${8 * scale}px` }}>
-          {backPhone   && <div onClick={(e) => handleClick(e, backPhone)}   style={getSectionStyle(backPhone)}>{data.phone}</div>}
-          {backWebsite && <div onClick={(e) => handleClick(e, backWebsite)} style={getSectionStyle(backWebsite)}>{data.website}</div>}
-          {backEmail   && <div onClick={(e) => handleClick(e, backEmail)}   style={getSectionStyle(backEmail)}>{data.email}</div>}
-        </div>
-        <div style={{ position: 'absolute', top: `${50 * scale}px`, right: `${20 * scale}px`, opacity: 0.9 }}>
+      <div style={baseStyle}>
+        <div style={{ position: 'absolute', top: `${50 * scale}px`, right: `${20 * scale}px`, opacity: 0.9, pointerEvents: 'none' }}>
           <VerticalLines color={t.text} scale={scale} />
         </div>
+        {logoEls}
+        {backName    && renderTextSection(backName)}
+        {backTitle   && renderTextSection(backTitle)}
+        {backPhone   && renderTextSection(backPhone)}
+        {backWebsite && renderTextSection(backWebsite)}
+        {backEmail   && renderTextSection(backEmail)}
         {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
@@ -140,10 +141,20 @@ export default function MonteroLayout({ template, isBack = false, containerWidth
   const frontTitle = findSection(sections, 'front-title');
 
   return (
-    <div style={{ ...baseStyle, flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-      {logoEl && <div style={{ marginBottom: `${25 * scale}px` }}>{logoEl}</div>}
-      {frontName  && <div onClick={(e) => handleClick(e, frontName)}  style={{ letterSpacing: `${0.08 * scale}em`, ...getSectionStyle(frontName)  }}>{data.firstName} {data.lastName}</div>}
-      {frontTitle && <div onClick={(e) => handleClick(e, frontTitle)} style={{ marginTop: `${8 * scale}px`, letterSpacing: `${0.15 * scale}em`, ...getSectionStyle(frontTitle) }}>{data.title}</div>}
+    <div style={baseStyle}>
+      {logoEls}
+      {frontName && (
+        <div onClick={(e) => handleClick(e, frontName)}
+          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', letterSpacing: `${0.08 * scale}em` }}>
+          {data.firstName} {data.lastName}
+        </div>
+      )}
+      {frontTitle && (
+        <div onClick={(e) => handleClick(e, frontTitle)}
+          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', letterSpacing: `${0.15 * scale}em` }}>
+          {data.title}
+        </div>
+      )}
       {movedInSections.map(s => renderTextSection(s))}
     </div>
   );

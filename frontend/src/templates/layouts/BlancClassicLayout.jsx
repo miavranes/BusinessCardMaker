@@ -189,7 +189,6 @@ export default function BlancClassicLayout({ template, isBack = false, container
         </div>
       )}
 
-      {/* Render any back sections that were moved onto the front canvas */}
       {movedInSections.map(s => renderTextSection(s))}
     </div>
   );

@@ -104,13 +104,13 @@ function svgFromButton(buttonEl) {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
 }
 
-const DEBUG = false;
-
 export default function Sidebar({
   elements, selectedElement,
   activeCanvas, onSetActiveCanvas,
   onAddElement, onUpdateElement, onDeleteElement,
   onAddTextSection,
+  canUndo, canRedo, onUndo, onRedo,
+  bgFront, bgBack, onChangeBgFront, onChangeBgBack,
 }) {
   const fileRef = useRef(null);
   const [activeCat, setActiveCat] = useState('shapes');
@@ -119,81 +119,45 @@ export default function Sidebar({
 
   const handleIconDragStart = (e) => {
     const dataUrl = svgFromButton(e.currentTarget);
-    if (!dataUrl) {
-      e.preventDefault();
-      return;
-    }
+    if (!dataUrl) { e.preventDefault(); return; }
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/x-icon-svg', dataUrl);
     e.dataTransfer.setData('text/plain', dataUrl);
-    // also carry the currently-selected color so dropped icons preserve it
     e.dataTransfer.setData('application/x-icon-color', iconColor);
   };
 
   const addIcon = (e) => {
     const dataUrl = svgFromButton(e.currentTarget);
-    if (!dataUrl) {
-      DEBUG && console.error('Could not extract SVG from button');
-      // fallback: try taking the innerHTML of the button (should contain svg)
-      const html = e.currentTarget.innerHTML;
-      const match = html.match(/<svg[\s\S]*<\/svg>/i);
-      if (match) {
-        const fallback = 'data:image/svg+xml;charset=utf-8,' +
-          encodeURIComponent(match[0]);
-        DEBUG && console.warn('using fallback svg data URL');
-        return addIcon({ currentTarget: { querySelector: () => {
-          const tmp = document.createElement('div');
-          tmp.innerHTML = match[0];
-          return tmp.firstChild;
-        } } });
-      }
-      return;
-    }
-    DEBUG && console.log('Creating icon with dataUrl:', dataUrl.substring(0, 100) + '...');
+    if (!dataUrl) return;
     const img = new window.Image();
     img.onload = () => {
-      DEBUG && console.log('Image loaded successfully, adding element');
-      // center element inside 580×330 canvas (same size used in Canvas.jsx)
-      const W = 60;
-      const H = 60;
-      const newElement = {
+      const W = 60; const H = 60;
+      onAddElement({
         id: `icon-${Date.now()}`,
         type: 'image',
-        x: (580 - W) / 2,
-        y: (330 - H) / 2,
+        x: (580 - W) / 2, y: (330 - H) / 2,
         width: W, height: H,
-        imgElement: img,
-        src: dataUrl,
-        opacity: 1,
-        color: iconColor,
-      };
-      DEBUG && console.log('Calling onAddElement with:', newElement);
-      onAddElement(newElement);
+        imgElement: img, src: dataUrl, opacity: 1, color: iconColor,
+      });
     };
-    img.onerror = (e) => DEBUG && console.error('img failed to load SVG data URL', e);
     img.src = dataUrl;
   };
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    DEBUG && console.log('Uploading image:', file.name);
     const url = URL.createObjectURL(file);
     const img = new window.Image();
     img.onload = () => {
-      DEBUG && console.log('Image loaded, dimensions:', img.naturalWidth, 'x', img.naturalHeight);
       const maxW = 180;
       const ratio = img.naturalHeight / img.naturalWidth;
       const w = Math.min(maxW, img.naturalWidth);
-      const newElement = {
+      onAddElement({
         id: `image-${Date.now()}`,
-        type: 'image',
-        x: 40, y: 40,
+        type: 'image', x: 40, y: 40,
         width: w, height: w * ratio,
         imgElement: img, src: url, opacity: 1,
-      };
-      DEBUG && console.log('Calling onAddElement with:', newElement);
-      onAddElement(newElement);
+      });
     };
     img.src = url;
     e.target.value = '';
@@ -210,20 +174,54 @@ export default function Sidebar({
         <span className="sb-title">Sidebar</span>
       </div>
 
-      <div className="sb-canvas-toggle">
-        <button
-          className={`sb-canvas-btn ${activeCanvas === 'front' ? 'active' : ''}`}
-          onClick={() => onSetActiveCanvas('front')}
-        >
-          Front
+      <div className="sb-undo-row">
+        <button className={`sb-undo-btn ${!canUndo ? 'disabled' : ''}`} onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
+          <Undo2 size={15} /> Undo
         </button>
-        <button
-          className={`sb-canvas-btn ${activeCanvas === 'back' ? 'active' : ''}`}
-          onClick={() => onSetActiveCanvas('back')}
-        >
-          Back
+        <button className={`sb-undo-btn ${!canRedo ? 'disabled' : ''}`} onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">
+          <Redo2 size={15} /> Redo
         </button>
       </div>
+
+      <div className="sb-canvas-toggle">
+        <button className={`sb-canvas-btn ${activeCanvas === 'front' ? 'active' : ''}`} onClick={() => onSetActiveCanvas('front')}>Front</button>
+        <button className={`sb-canvas-btn ${activeCanvas === 'back'  ? 'active' : ''}`} onClick={() => onSetActiveCanvas('back')}>Back</button>
+      </div>
+
+      <div className="sb-divider" style={{ margin: '8px 14px' }} />
+      <div className="sb-upload-section">
+        <p className="sb-section-title" style={{ padding: '0 16px' }}>Background</p>
+        <div className="sb-bg-row">
+          <label
+            className={`sb-bg-swatch-label ${activeCanvas === 'front' ? 'sb-bg-swatch-label--active' : ''}`}
+            title="Front background color"
+          >
+            <span className="sb-swatch-label">Front</span>
+            <span className="sb-swatch-wrap" style={{ background: bgFront || '#ffffff' }}>
+              <input
+                type="color"
+                value={bgFront || '#ffffff'}
+                onChange={e => onChangeBgFront && onChangeBgFront(e.target.value)}
+              />
+            </span>
+          </label>
+
+          <label
+            className={`sb-bg-swatch-label ${activeCanvas === 'back' ? 'sb-bg-swatch-label--active' : ''}`}
+            title="Back background color"
+          >
+            <span className="sb-swatch-label">Back</span>
+            <span className="sb-swatch-wrap" style={{ background: bgBack || '#ffffff' }}>
+              <input
+                type="color"
+                value={bgBack || '#ffffff'}
+                onChange={e => onChangeBgBack && onChangeBgBack(e.target.value)}
+              />
+            </span>
+          </label>
+        </div>
+      </div>
+      <div className="sb-divider" style={{ margin: '8px 14px' }} />
 
       <div className="sb-search-wrap">
         <svg className="sb-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5">
@@ -245,9 +243,7 @@ export default function Sidebar({
               key={cat.id}
               className={`sb-cat-btn ${activeCat === cat.id ? 'active' : ''}`}
               onClick={() => setActiveCat(cat.id)}
-            >
-              {cat.label}
-            </button>
+            >{cat.label}</button>
           ))}
         </div>
       )}
@@ -273,9 +269,7 @@ export default function Sidebar({
             <span>{name}</span>
           </button>
         ))}
-        {displayIcons.length === 0 && (
-          <p className="sb-empty">No icons found</p>
-        )}
+        {displayIcons.length === 0 && <p className="sb-empty">No icons found</p>}
       </div>
 
       <div className="sb-divider" style={{ margin: '8px 14px' }} />
@@ -297,10 +291,7 @@ export default function Sidebar({
 
       <div className="sb-upload-section">
         <p className="sb-section-title" style={{ padding: '0 16px' }}>Text</p>
-        <button className="sb-upload-btn" onClick={() => {
-          DEBUG && console.log('Add Text button clicked!');
-          onAddTextSection();
-        }}>
+        <button className="sb-upload-btn" onClick={onAddTextSection}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M4 7V4h16v3M9 20h6M12 4v16" />
           </svg>

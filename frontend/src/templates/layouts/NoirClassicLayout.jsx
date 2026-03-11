@@ -52,12 +52,15 @@ const FIELD_ICONS = { phone: PhoneIcon, email: MailIcon, website: WebIcon };
 const findSection = (sections, baseId) =>
   sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
 
-const findLogoSection = (sections, isBack) => {
+const findLogoSections = (sections, isBack) => {
   const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
   const otherPrefix = isBack ? 'front-logo' : 'back-logo';
-  return (
-    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
-    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  return sections.filter(
+    s => s.type === 'logo' && (
+      s.id === ownPrefix ||
+      s.id.startsWith(`${ownPrefix}-moved-`) ||
+      s.id.startsWith(`${otherPrefix}-moved-`)
+    )
   );
 };
 
@@ -100,21 +103,22 @@ export default function NoirClassicLayout({ template, isBack = false, containerW
     );
   };
 
-  const logoSection = findLogoSection(sections, isBack);
-  const logoEl = logoSection ? (
+  const logoSections = findLogoSections(sections, isBack);
+  const logoEls = logoSections.map(logoSection => (
     <img
+      key={logoSection.id}
       src={data.logoUrl || logoIcon}
       alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
-      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer', filter: isBack ? 'brightness(0) invert(1)' : 'none' }}
+      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
     />
-  ) : null;
+  ));
 
   const movedInSections = findMovedInSections(sections, isBack);
 
   const baseStyle = {
     width: '100%', height: '100%', position: 'relative', overflow: 'hidden',
-    display: 'flex', flexShrink: 0, boxSizing: 'border-box',
+    flexShrink: 0, boxSizing: 'border-box',
   };
 
   if (isBack) {
@@ -126,9 +130,19 @@ export default function NoirClassicLayout({ template, isBack = false, containerW
 
     return (
       <div style={{ ...baseStyle, background: t.bgBack }}>
-        {logoEl}
-        {backName  && <div onClick={(e) => handleClick(e, backName)}  style={{ ...getSectionPos(sections, backName.id),  ...getSectionStyle(backName),  letterSpacing: '0.05em', lineHeight: 1.2, display: 'flex', alignItems: 'center' }}>{data.firstName}<br />{data.lastName}</div>}
-        {backTitle && <div onClick={(e) => handleClick(e, backTitle)} style={{ ...getSectionPos(sections, backTitle.id), ...getSectionStyle(backTitle), letterSpacing: '0.25em', display: 'flex', alignItems: 'center' }}>{data.title}</div>}
+        {logoEls}
+        {backName && (
+          <div onClick={(e) => handleClick(e, backName)}
+            style={{ ...getSectionPos(sections, backName.id), ...getSectionStyle(backName), letterSpacing: '0.05em', lineHeight: 1.2, display: 'flex', alignItems: 'center' }}>
+            {data.firstName}<br />{data.lastName}
+          </div>
+        )}
+        {backTitle && (
+          <div onClick={(e) => handleClick(e, backTitle)}
+            style={{ ...getSectionPos(sections, backTitle.id), ...getSectionStyle(backTitle), letterSpacing: '0.25em', display: 'flex', alignItems: 'center' }}>
+            {data.title}
+          </div>
+        )}
         {backPhone   && renderTextSection(backPhone)}
         {backEmail   && renderTextSection(backEmail)}
         {backWebsite && renderTextSection(backWebsite)}
@@ -142,9 +156,19 @@ export default function NoirClassicLayout({ template, isBack = false, containerW
 
   return (
     <div style={{ ...baseStyle, background: t.bg }}>
-      {logoEl}
-      {frontName  && <div onClick={(e) => handleClick(e, frontName)}  style={{ ...getSectionPos(sections, frontName.id),  ...getSectionStyle(frontName),  letterSpacing: '0.15em', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.firstName} {data.lastName}</div>}
-      {frontTitle && <div onClick={(e) => handleClick(e, frontTitle)} style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), letterSpacing: '0.2em',  textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.title}</div>}
+      {logoEls}
+      {frontName && (
+        <div onClick={(e) => handleClick(e, frontName)}
+          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), letterSpacing: '0.15em', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {data.firstName} {data.lastName}
+        </div>
+      )}
+      {frontTitle && (
+        <div onClick={(e) => handleClick(e, frontTitle)}
+          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), letterSpacing: '0.2em', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {data.title}
+        </div>
+      )}
       {movedInSections.map(s => renderTextSection(s))}
     </div>
   );

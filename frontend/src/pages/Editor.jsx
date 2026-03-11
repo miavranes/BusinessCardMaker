@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 const DEBUG = false;
 import { useParams, useLocation } from 'react-router-dom';
@@ -8,6 +8,50 @@ import Canvas from '../components/Canvas';
 import FloatingEditor from '../components/FloatingEditor';
 import Sidebar from '../components/Sidebar';
 import '../css/Editor.css';
+
+// ---------------------------------------------------------------------------
+// useHistory — undo/redo stack
+// ---------------------------------------------------------------------------
+function useHistory(initial) {
+  const [past,    setPast]    = useState([]);
+  const [present, setPresent] = useState(initial);
+  const [future,  setFuture]  = useState([]);
+
+  const push = useCallback((updater) => {
+    setPresent(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      setPast(p => [...p, prev]);
+      setFuture([]);
+      return next;
+    });
+  }, []);
+
+  const silentSet = useCallback((updater) => {
+    setPresent(prev => typeof updater === 'function' ? updater(prev) : updater);
+  }, []);
+
+  const undo = useCallback(() => {
+    setPast(p => {
+      if (!p.length) return p;
+      const previous = p[p.length - 1];
+      setFuture(f => [present, ...f]);
+      setPresent(previous);
+      return p.slice(0, -1);
+    });
+  }, [present]);
+
+  const redo = useCallback(() => {
+    setFuture(f => {
+      if (!f.length) return f;
+      const next = f[0];
+      setPast(p => [...p, present]);
+      setPresent(next);
+      return f.slice(1);
+    });
+  }, [present]);
+
+  return { state: present, push, silentSet, undo, redo, canUndo: past.length > 0, canRedo: future.length > 0 };
+}
 
 export default function Editor() {
   const { templateId } = useParams();
@@ -19,184 +63,185 @@ export default function Editor() {
     : null;
 
   const canvasFrontRef = useRef(null);
-  const canvasBackRef = useRef(null);
-  const editorRef = useRef(null);
+  const canvasBackRef  = useRef(null);
+  const editorRef      = useRef(null);
 
-  const [userData, setUserData] = useState(() => {
-    const baseData = { ...selectedTemplate?.defaultData, ...prefill };
-    if (prefill.name) {
-      const parts = prefill.name.trim().split(/\s+/);
-      baseData.firstName = parts[0] || '';
-      baseData.lastName = parts.slice(1).join(' ') || '';
-    }
-    delete baseData.name;
-    return baseData;
-  });
-
-  const updateUserData = (field, value) => {
-    DEBUG && console.log('updateUserData called:', field, '=', value);
-    setUserData(prev => {
-      const updated = { ...prev, [field]: value };
-      DEBUG && console.log('Updated userData:', updated);
-      return updated;
-    });
+  const initialState = {
+    sectionsFront: (selectedTemplate?.sectionsFront ?? []).map(s => ({ ...s })),
+    sectionsBack:  (selectedTemplate?.sectionsBack  ?? []).map(s => ({ ...s })),
+    elementsFront: [],
+    elementsBack:  [],
   };
 
-  const [sectionsFront, setSectionsFront] = useState(() =>
-    (selectedTemplate?.sectionsFront ?? []).map(s => ({ ...s }))
-  );
-  const [sectionsBack, setSectionsBack] = useState(() =>
-    (selectedTemplate?.sectionsBack ?? []).map(s => ({ ...s }))
-  );
+  const { state, push, silentSet, undo, redo, canUndo, canRedo } = useHistory(initialState);
+  const { sectionsFront, sectionsBack, elementsFront, elementsBack } = state;
 
+  const setSectionsFront = fn => push(s => ({ ...s, sectionsFront: typeof fn === 'function' ? fn(s.sectionsFront) : fn }));
+  const setSectionsBack  = fn => push(s => ({ ...s, sectionsBack:  typeof fn === 'function' ? fn(s.sectionsBack)  : fn }));
+  const setElementsFront = fn => push(s => ({ ...s, elementsFront: typeof fn === 'function' ? fn(s.elementsFront) : fn }));
+  const setElementsBack  = fn => push(s => ({ ...s, elementsBack:  typeof fn === 'function' ? fn(s.elementsBack)  : fn }));
+
+  const patchElement = (id, updates) => {
+    push(s => ({
+      ...s,
+      elementsFront: s.elementsFront.map(el => el.id === id ? { ...el, ...updates } : el),
+      elementsBack:  s.elementsBack.map( el => el.id === id ? { ...el, ...updates } : el),
+    }));
+  };
+
+  const silentUpdateElement = useCallback((id, updates) => {
+    silentSet(s => ({
+      ...s,
+      elementsFront: s.elementsFront.map(el => el.id === id ? { ...el, ...updates } : el),
+      elementsBack:  s.elementsBack.map( el => el.id === id ? { ...el, ...updates } : el),
+    }));
+  }, [silentSet]);
+
+  const silentUpdateSection = useCallback((sectionId, updates) => {
+    silentSet(s => ({
+      ...s,
+      sectionsFront: s.sectionsFront.map(sec => sec.id === sectionId ? { ...sec, ...updates } : sec),
+      sectionsBack:  s.sectionsBack.map( sec => sec.id === sectionId ? { ...sec, ...updates } : sec),
+    }));
+    setSelectedSection(prev => prev?.id === sectionId ? { ...prev, ...updates } : prev);
+  }, [silentSet]);
+
+  // -------------------------------------------------------------------------
+  // userData — NOT part of undo history
+  // -------------------------------------------------------------------------
+  const [userData, setUserData] = useState(() => {
+    const base = { ...selectedTemplate?.defaultData, ...prefill };
+    if (prefill.name) {
+      const parts = prefill.name.trim().split(/\s+/);
+      base.firstName = parts[0] || '';
+      base.lastName  = parts.slice(1).join(' ') || '';
+    }
+    delete base.name;
+    return base;
+  });
+
+  const updateUserData = (field, value) => setUserData(prev => ({ ...prev, [field]: value }));
+
+  // -------------------------------------------------------------------------
+  // Section helpers
+  // -------------------------------------------------------------------------
   const updateSection = (sectionId, updates) => {
-    const patch = list =>
-      list.map(s => (s.id === sectionId ? { ...s, ...updates } : s));
     const isFront = sectionsFront.some(s => s.id === sectionId);
-    if (isFront) setSectionsFront(prev => patch(prev));
-    else setSectionsBack(prev => patch(prev));
-    setSelectedSection(prev =>
-      prev?.id === sectionId ? { ...prev, ...updates } : prev
-    );
+    push(s => {
+      const patch = list => list.map(sec => sec.id === sectionId ? { ...sec, ...updates } : sec);
+      return isFront
+        ? { ...s, sectionsFront: patch(s.sectionsFront) }
+        : { ...s, sectionsBack:  patch(s.sectionsBack)  };
+    });
+    setSelectedSection(prev => prev?.id === sectionId ? { ...prev, ...updates } : prev);
   };
 
   const handleReorderSection = (sectionId, direction) => {
     const isFront = sectionsFront.some(s => s.id === sectionId);
-    if (isFront) {
-      setSectionsFront(prev => reorderSections(prev, sectionId, direction));
-    } else {
-      setSectionsBack(prev => reorderSections(prev, sectionId, direction));
-    }
-    // keep selectedSection in sync with updated zIndex
-    const updated = (isFront ? sectionsFront : sectionsBack).find(s => s.id === sectionId);
-    if (updated) {
-      setSelectedSection(prev => prev?.id === sectionId ? { ...prev, ...updated } : prev);
-    }
+    push(s => isFront
+      ? { ...s, sectionsFront: reorderSections(s.sectionsFront, sectionId, direction) }
+      : { ...s, sectionsBack:  reorderSections(s.sectionsBack,  sectionId, direction) }
+    );
   };
 
-  const [selectedSection, setSelectedSection] = useState(null);
+  // -------------------------------------------------------------------------
+  // Selection state
+  // -------------------------------------------------------------------------
+  const [selectedSection,   setSelectedSection]   = useState(null);
   const [sectionAnchorRect, setSectionAnchorRect] = useState(null);
-
-  const [selectedElement, setSelectedElement] = useState(null);
+  const [selectedElement,   setSelectedElement]   = useState(null);
   const [elementAnchorRect, setElementAnchorRect] = useState(null);
+  const [activeCanvas,      setActiveCanvas]      = useState('front');
+  const [dragPreview,       setDragPreview]       = useState(null);
 
   const handleSelectSection = (section, domRect) => {
     setSelectedSection(section ?? null);
     setSectionAnchorRect(domRect ?? null);
-    if (section) {
-      setSelectedElement(null);
-      setElementAnchorRect(null);
-    }
+    if (section) { setSelectedElement(null); setElementAnchorRect(null); }
   };
 
   const handleSelectElement = (id, rect) => {
     setSelectedElement(id);
     setElementAnchorRect(rect || null);
-    if (id) {
-      setSelectedSection(null);
-      setSectionAnchorRect(null);
-    }
+    if (id) { setSelectedSection(null); setSectionAnchorRect(null); }
   };
 
-  const [elementsFront, setElementsFront] = useState([]);
-  const [elementsBack, setElementsBack]   = useState([]);
-
-  const [dragPreview, setDragPreview] = useState(null);
-
-  const handleDragElement = (element, coords, targetSide) => {
-    setDragPreview({ element, x: coords.x, y: coords.y, targetSide });
-  };
-  const handleDragEnd = () => {
-    setDragPreview(null);
-  };
-
-  const [activeCanvas, setActiveCanvas] = useState('front');
-
-  const getSetters = (side) =>
-    side === 'front'
-      ? { elements: elementsFront, setElements: setElementsFront }
-      : { elements: elementsBack,  setElements: setElementsBack  };
-
+  // -------------------------------------------------------------------------
+  // Element helpers
+  // -------------------------------------------------------------------------
   const addElement = (el) => {
-    DEBUG && console.log('Editor.addElement called; activeCanvas=', activeCanvas);
-    const { setElements } = getSetters(activeCanvas);
-    setElements(prev => [...prev, el]);
+    if (activeCanvas === 'front') setElementsFront(prev => [...prev, el]);
+    else                          setElementsBack(  prev => [...prev, el]);
     setSelectedElement(el.id);
     setSelectedSection(null);
   };
 
-  const addElementToFront = (el) => {
-    setElementsFront(prev => [...prev, el]);
-    setSelectedElement(el.id);
-    setSelectedSection(null);
-  };
+  const addElementToFront = (el) => { setElementsFront(prev => [...prev, el]); setSelectedElement(el.id); setSelectedSection(null); };
+  const addElementToBack  = (el) => { setElementsBack(  prev => [...prev, el]); setSelectedElement(el.id); setSelectedSection(null); };
 
-  const addElementToBack = (el) => {
-    setElementsBack(prev => [...prev, el]);
-    setSelectedElement(el.id);
-    setSelectedSection(null);
+  const updateElement = (id, updates) => patchElement(id, updates);
+
+  const deleteElement = (id) => {
+    push(s => ({
+      ...s,
+      elementsFront: s.elementsFront.filter(el => el.id !== id),
+      elementsBack:  s.elementsBack.filter( el => el.id !== id),
+    }));
+    setSelectedElement(null);
+    setElementAnchorRect(null);
   };
 
   const moveElementToBack = (element) => {
-    setElementsFront(prev => prev.filter(el => el.id !== element.id));
-    setElementsBack(prev => [...prev, element]);
+    push(s => ({
+      ...s,
+      elementsFront: s.elementsFront.filter(el => el.id !== element.id),
+      elementsBack:  [...s.elementsBack, element],
+    }));
     setSelectedElement(element.id);
     setActiveCanvas('back');
   };
 
   const moveElementToFront = (element) => {
-    setElementsBack(prev => prev.filter(el => el.id !== element.id));
-    setElementsFront(prev => [...prev, element]);
+    push(s => ({
+      ...s,
+      elementsBack:  s.elementsBack.filter( el => el.id !== element.id),
+      elementsFront: [...s.elementsFront, element],
+    }));
     setSelectedElement(element.id);
     setActiveCanvas('front');
   };
 
-  const mapSectionToSide = (section) => {
-    return { ...section, id: `${section.id}-moved-${Date.now()}` };
-  };
+  const mapSectionToSide = (section) => ({ ...section, id: `${section.id}-moved-${Date.now()}` });
 
   const moveSectionToBack = (section) => {
-    setSectionsFront(prev => prev.filter(s => s.id !== section.id));
     const mapped = mapSectionToSide(section);
-    setSectionsBack(prev => [...prev, mapped]);
+    push(s => ({
+      ...s,
+      sectionsFront: s.sectionsFront.filter(sec => sec.id !== section.id),
+      sectionsBack:  [...s.sectionsBack, mapped],
+    }));
     setSelectedSection(mapped);
     setActiveCanvas('back');
   };
 
   const moveSectionToFront = (section) => {
-    setSectionsBack(prev => prev.filter(s => s.id !== section.id));
     const mapped = mapSectionToSide(section);
-    setSectionsFront(prev => [...prev, mapped]);
+    push(s => ({
+      ...s,
+      sectionsBack:  s.sectionsBack.filter( sec => sec.id !== section.id),
+      sectionsFront: [...s.sectionsFront, mapped],
+    }));
     setSelectedSection(mapped);
     setActiveCanvas('front');
   };
 
-  const updateElement = (id, updates) => {
-    setElementsFront(prev =>
-      prev.some(el => el.id === id)
-        ? prev.map(el => el.id === id ? { ...el, ...updates } : el)
-        : prev
-    );
-    setElementsBack(prev =>
-      prev.some(el => el.id === id)
-        ? prev.map(el => el.id === id ? { ...el, ...updates } : el)
-        : prev
-    );
-  };
-
-  const deleteElement = (id) => {
-    setElementsFront(prev => prev.filter(el => el.id !== id));
-    setElementsBack(prev => prev.filter(el => el.id !== id));
-    setSelectedElement(null);
-    setElementAnchorRect(null);
-  };
-
   const allElements = [...elementsFront, ...elementsBack];
 
+  const handleDragElement = (element, coords, targetSide) => setDragPreview({ element, x: coords.x, y: coords.y, targetSide });
+  const handleDragEnd = () => setDragPreview(null);
+
   useEffect(() => {
-    if (!selectedElement) {
-      setElementAnchorRect(null);
-    }
+    if (!selectedElement) setElementAnchorRect(null);
   }, [selectedElement]);
 
   useEffect(() => {
@@ -204,80 +249,65 @@ export default function Editor() {
     const el = allElements.find(e => e.id === selectedElement);
     if (!el) return;
     const CANVAS_W = 580;
-    const CANVAS_H = 330;
     const canvasRef = activeCanvas === 'front' ? canvasFrontRef : canvasBackRef;
     if (!canvasRef.current) return;
     const parentRect = canvasRef.current.getBoundingClientRect();
     const scale = parentRect.width / CANVAS_W;
     const left = parentRect.left + el.x * scale;
-    const top = parentRect.top + el.y * scale;
-    const widthPx = (el.width || 0) * scale;
+    const top  = parentRect.top  + el.y * scale;
+    const widthPx  = (el.width  || 0) * scale;
     const heightPx = (el.height || 0) * scale;
     setElementAnchorRect({ left, right: left + widthPx, top, bottom: top + heightPx, width: widthPx, height: heightPx });
   }, [allElements, selectedElement, activeCanvas]);
 
-  const [bgFront, setBgFront] = useState(selectedTemplate?.bg || '#ffffff');
-  const [bgBack, setBgBack]   = useState(selectedTemplate?.bgBack || '#ffffff');
+  // ── Background colors (live, not in undo history) ──
+  const [bgFront, setBgFront] = useState(selectedTemplate?.bg     || '#ffffff');
+  const [bgBack,  setBgBack]  = useState(selectedTemplate?.bgBack || '#ffffff');
 
-  const handleLogoUpload = file => {
-    const url = URL.createObjectURL(file);
-    updateUserData('logoUrl', url);
-  };
+  const handleLogoUpload = file => updateUserData('logoUrl', URL.createObjectURL(file));
 
-  const handleDeleteSection = sectionId => {
-    if (sectionId.startsWith('back-')) {
-      setSectionsBack(prev => prev.filter(s => s.id !== sectionId));
-    } else {
-      setSectionsFront(prev => prev.filter(s => s.id !== sectionId));
-    }
+  const handleDeleteSection = (sectionId) => {
+    push(s => ({
+      ...s,
+      sectionsFront: s.sectionsFront.filter(sec => sec.id !== sectionId),
+      sectionsBack:  s.sectionsBack.filter( sec => sec.id !== sectionId),
+    }));
   };
 
   const handleAddTextSection = () => {
-    const fieldKey = `custom_${Date.now()}`;
+    const fieldKey   = `custom_${Date.now()}`;
     const newSection = {
       id: `text-added-${Date.now()}`,
-      type: 'text',
-      field: fieldKey,
-      label: 'Added Text',
-      x: 0.05, y: 0.35,
-      width: 0.9, height: 0.3,
-      fontSize: 16,
-      fontFamily: 'Arial, sans-serif',
-      color: '#000000',
-      fontWeight: 'normal',
-      fontStyle: 'normal',
-      textAlign: 'left',
-      textDecoration: 'none',
-      textShadowBlur: 0,
-      textShadowColor: '#000000',
-      textStrokeWidth: 0,
-      textStrokeColor: '#000000',
-      opacity: 1,
-      zIndex: 1,
+      type: 'text', field: fieldKey, label: 'Added Text',
+      x: 0.05, y: 0.35, width: 0.9, height: 0.3,
+      fontSize: 16, fontFamily: 'Arial, sans-serif', color: '#000000',
+      fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left',
+      textDecoration: 'none', textShadowBlur: 0, textShadowColor: '#000000',
+      textStrokeWidth: 0, textStrokeColor: '#000000', opacity: 1, zIndex: 1,
     };
-
-    if (activeCanvas === 'front') {
-      setSectionsFront(prev => [...prev, newSection]);
-    } else {
-      setSectionsBack(prev => [...prev, newSection]);
-    }
-
+    if (activeCanvas === 'front') setSectionsFront(prev => [...prev, newSection]);
+    else                          setSectionsBack(  prev => [...prev, newSection]);
     setUserData(prev => ({ ...prev, [fieldKey]: '' }));
     setSelectedSection(newSection);
     setSectionAnchorRect({
-      left: window.innerWidth / 2,
-      right: window.innerWidth / 2,
-      top: window.innerHeight / 2,
-      bottom: window.innerHeight / 2,
-      width: 0,
-      height: 0,
+      left: window.innerWidth / 2, right: window.innerWidth / 2,
+      top:  window.innerHeight / 2, bottom: window.innerHeight / 2,
+      width: 0, height: 0,
     });
     setSelectedElement(null);
   };
 
-  const activeTemplate = selectedTemplate
-    ? { ...selectedTemplate, sectionsFront, sectionsBack }
-    : null;
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
 
   useEffect(() => {
     const handleOutsideClick = e => {
@@ -294,6 +324,10 @@ export default function Editor() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  const activeTemplate = selectedTemplate
+    ? { ...selectedTemplate, sectionsFront, sectionsBack }
+    : null;
+
   return (
     <div className="editor-container" ref={editorRef}>
 
@@ -306,6 +340,15 @@ export default function Editor() {
         onUpdateElement={updateElement}
         onDeleteElement={deleteElement}
         onAddTextSection={handleAddTextSection}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
+        // Background color props
+        bgFront={bgFront}
+        bgBack={bgBack}
+        onChangeBgFront={setBgFront}
+        onChangeBgBack={setBgBack}
       />
 
       <div className={`canvas-area${(selectedSection || selectedElement) ? ' canvas-area--shift' : ''}`}>
@@ -322,13 +365,12 @@ export default function Editor() {
             ref={canvasFrontRef}
             elements={elementsFront}
             selectedElement={selectedElement}
-            setSelectedElement={id => {
-              setSelectedElement(id);
-              setSelectedSection(null);
-              setActiveCanvas('front');
-            }}
+            setSelectedElement={id => { setSelectedElement(id); setSelectedSection(null); setActiveCanvas('front'); }}
             onAddElement={addElementToFront}
             onUpdateElement={updateElement}
+            onSilentUpdateElement={silentUpdateElement}
+            onSilentUpdateSection={silentUpdateSection}
+            onUpdateSection={updateSection}
             onMoveElementToOtherCanvas={moveElementToBack}
             otherCanvasRef={canvasBackRef}
             onMoveSectionToOtherCanvas={moveSectionToBack}
@@ -342,7 +384,6 @@ export default function Editor() {
             showPreview={false}
             selectedSection={selectedSection}
             onSelectSection={handleSelectSection}
-            onUpdateSection={updateSection}
             userData={userData}
             sections={sectionsFront}
             isActive={activeCanvas === 'front'}
@@ -362,13 +403,12 @@ export default function Editor() {
             ref={canvasBackRef}
             elements={elementsBack}
             selectedElement={selectedElement}
-            setSelectedElement={id => {
-              setSelectedElement(id);
-              setSelectedSection(null);
-              setActiveCanvas('back');
-            }}
+            setSelectedElement={id => { setSelectedElement(id); setSelectedSection(null); setActiveCanvas('back'); }}
             onAddElement={addElementToBack}
             onUpdateElement={updateElement}
+            onSilentUpdateElement={silentUpdateElement}
+            onSilentUpdateSection={silentUpdateSection}
+            onUpdateSection={updateSection}
             onMoveElementToOtherCanvas={moveElementToFront}
             otherCanvasRef={canvasFrontRef}
             onMoveSectionToOtherCanvas={moveSectionToFront}
@@ -382,7 +422,6 @@ export default function Editor() {
             showPreview={false}
             selectedSection={selectedSection}
             onSelectSection={handleSelectSection}
-            onUpdateSection={updateSection}
             userData={userData}
             sections={sectionsBack}
             isActive={activeCanvas === 'back'}

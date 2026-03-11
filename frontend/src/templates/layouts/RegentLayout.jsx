@@ -26,19 +26,19 @@ export const regentTemplate = {
     slogan: "Modern Design for Growing Brands.",
   },
   sectionsFront: [
-    { id: 'front-logo',    type: 'logo', label: 'Logo',    x: 0.35, y: 0.15, width: 0.30, height: 0.30 },
-    { id: 'front-company', type: 'text', field: 'company', label: 'Company', x: 0.15, y: 0.48, width: 0.70, height: 0.10, fontSize: 13, fontFamily: "'Jost', sans-serif", fontWeight: '500', color: '#c9a96e', textTransform: 'uppercase' },
-    { id: 'front-slogan',  type: 'text', field: 'slogan',  label: 'Slogan',  x: 0.10, y: 0.60, width: 0.80, height: 0.10, fontSize: 10, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', color: '#a0b4c8' },
-    { id: 'front-website', type: 'text', field: 'website', label: 'Website', x: 0.20, y: 0.78, width: 0.60, height: 0.08, fontSize: 9,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#a0b4c8' },
+    { id: 'front-logo',    type: 'logo', label: 'Logo',    x: 0.35, y: 0.08, width: 0.30, height: 0.30 },
+    { id: 'front-company', type: 'text', field: 'company', label: 'Company', x: 0.15, y: 0.42, width: 0.70, height: 0.10, fontSize: 13, fontFamily: "'Jost', sans-serif", fontWeight: '500', color: '#c9a96e', textTransform: 'uppercase' },
+    { id: 'front-slogan',  type: 'text', field: 'slogan',  label: 'Slogan',  x: 0.10, y: 0.54, width: 0.80, height: 0.10, fontSize: 10, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', color: '#a0b4c8' },
+    { id: 'front-website', type: 'text', field: 'website', label: 'Website', x: 0.20, y: 0.72, width: 0.60, height: 0.08, fontSize: 9,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#a0b4c8' },
   ],
   sectionsBack: [
-    { id: 'back-logo',    type: 'logo', label: 'Logo',    x: 0.08, y: 0.35, width: 0.25, height: 0.30 },
-    { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    x: 0.48, y: 0.15, width: 0.47, height: 0.12, fontSize: 13, fontFamily: "'Jost', sans-serif", fontWeight: '600', color: '#1a2d4a' },
-    { id: 'back-title',   type: 'text', field: 'title',   label: 'Title',   x: 0.48, y: 0.28, width: 0.47, height: 0.10, fontSize: 10, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', color: '#6b7a8d' },
-    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   x: 0.48, y: 0.48, width: 0.47, height: 0.08, fontSize: 8,  color: '#1a2d4a' },
-    { id: 'back-address', type: 'text', field: 'address', label: 'Address', x: 0.48, y: 0.58, width: 0.47, height: 0.08, fontSize: 8,  color: '#1a2d4a' },
-    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   x: 0.48, y: 0.68, width: 0.47, height: 0.08, fontSize: 8,  color: '#1a2d4a' },
-    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.48, y: 0.78, width: 0.47, height: 0.08, fontSize: 8,  color: '#1a2d4a' },
+    { id: 'back-logo',    type: 'logo', label: 'Logo',    x: 0.08, y: 0.30, width: 0.28, height: 0.35 },
+    { id: 'back-name',    type: 'text', field: 'name',    label: 'Name',    x: 0.48, y: 0.10, width: 0.47, height: 0.12, fontSize: 13, fontFamily: "'Jost', sans-serif", fontWeight: '600', color: '#1a2d4a' },
+    { id: 'back-title',   type: 'text', field: 'title',   label: 'Title',   x: 0.48, y: 0.24, width: 0.47, height: 0.10, fontSize: 10, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', color: '#6b7a8d' },
+    { id: 'back-phone',   type: 'text', field: 'phone',   label: 'Phone',   x: 0.48, y: 0.44, width: 0.47, height: 0.09, fontSize: 8,  fontFamily: "'Jost', sans-serif", color: '#1a2d4a' },
+    { id: 'back-address', type: 'text', field: 'address', label: 'Address', x: 0.48, y: 0.54, width: 0.47, height: 0.09, fontSize: 8,  fontFamily: "'Jost', sans-serif", color: '#1a2d4a' },
+    { id: 'back-email',   type: 'text', field: 'email',   label: 'Email',   x: 0.48, y: 0.64, width: 0.47, height: 0.09, fontSize: 8,  fontFamily: "'Jost', sans-serif", color: '#1a2d4a' },
+    { id: 'back-website', type: 'text', field: 'website', label: 'Website', x: 0.48, y: 0.74, width: 0.47, height: 0.09, fontSize: 8,  fontFamily: "'Jost', sans-serif", color: '#1a2d4a' },
   ],
 };
 
@@ -52,12 +52,15 @@ const FIELD_ICONS = { phone: PhoneIcon, address: LocationIcon, email: MailIcon, 
 const findSection = (sections, baseId) =>
   sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
 
-const findLogoSection = (sections, isBack) => {
+const findLogoSections = (sections, isBack) => {
   const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
   const otherPrefix = isBack ? 'front-logo' : 'back-logo';
-  return (
-    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
-    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  return sections.filter(
+    s => s.type === 'logo' && (
+      s.id === ownPrefix ||
+      s.id.startsWith(`${ownPrefix}-moved-`) ||
+      s.id.startsWith(`${otherPrefix}-moved-`)
+    )
   );
 };
 
@@ -100,25 +103,22 @@ export default function RegentLayout({ template, isBack = false, containerWidth,
     );
   };
 
-  const logoSection = findLogoSection(sections, isBack);
-  const logoEl = logoSection ? (
+  const logoSections = findLogoSections(sections, isBack);
+  const logoEls = logoSections.map(logoSection => (
     <img
+      key={logoSection.id}
       src={data.logoUrl || logoIcon}
       alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
-      style={{
-        ...getSectionPos(sections, logoSection.id),
-        objectFit: 'contain', cursor: 'pointer',
-        filter: data.logoUrl ? 'none' : `brightness(0) saturate(100%) invert(75%) sepia(40%) saturate(500%) hue-rotate(5deg)`,
-      }}
+      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
     />
-  ) : null;
+  ));
 
   const movedInSections = findMovedInSections(sections, isBack);
 
   const baseStyle = {
     width: '100%', height: '100%', position: 'relative', overflow: 'hidden',
-    display: 'flex', flexShrink: 0, boxSizing: 'border-box',
+    flexShrink: 0, boxSizing: 'border-box',
   };
 
   if (!isBack) {
@@ -128,11 +128,26 @@ export default function RegentLayout({ template, isBack = false, containerWidth,
 
     return (
       <div style={{ ...baseStyle, background: t.bg }}>
-        {logoEl}
-        {frontCompany && <div onClick={(e) => handleClick(e, frontCompany)} style={{ ...getSectionPos(sections, frontCompany.id), ...getSectionStyle(frontCompany), letterSpacing: '0.2em', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.company}</div>}
-        {frontSlogan  && <div onClick={(e) => handleClick(e, frontSlogan)}  style={{ ...getSectionPos(sections, frontSlogan.id),  ...getSectionStyle(frontSlogan),  letterSpacing: '0.05em', textAlign: 'center', opacity: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.slogan}</div>}
-        <div style={{ position: 'absolute', left: '50%', top: '72%', transform: 'translateX(-50%)', width: `${60 * scale}px`, height: `${1 * scale}px`, background: t.accent, opacity: 0.4 }} />
-        {frontWebsite && <div onClick={(e) => handleClick(e, frontWebsite)} style={{ ...getSectionPos(sections, frontWebsite.id), ...getSectionStyle(frontWebsite), letterSpacing: '0.08em', textAlign: 'center', opacity: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{data.website}</div>}
+        {logoEls}
+        {frontCompany && (
+          <div onClick={(e) => handleClick(e, frontCompany)}
+            style={{ ...getSectionPos(sections, frontCompany.id), ...getSectionStyle(frontCompany), letterSpacing: '0.2em', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {data.company}
+          </div>
+        )}
+        {frontSlogan && (
+          <div onClick={(e) => handleClick(e, frontSlogan)}
+            style={{ ...getSectionPos(sections, frontSlogan.id), ...getSectionStyle(frontSlogan), letterSpacing: '0.05em', textAlign: 'center', opacity: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {data.slogan}
+          </div>
+        )}
+        <div style={{ position: 'absolute', left: '50%', top: '66%', transform: 'translateX(-50%)', width: `${60 * scale}px`, height: `${1 * scale}px`, background: t.accent, opacity: 0.4, pointerEvents: 'none' }} />
+        {frontWebsite && (
+          <div onClick={(e) => handleClick(e, frontWebsite)}
+            style={{ ...getSectionPos(sections, frontWebsite.id), ...getSectionStyle(frontWebsite), letterSpacing: '0.08em', textAlign: 'center', opacity: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {data.website}
+          </div>
+        )}
         {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
@@ -147,17 +162,27 @@ export default function RegentLayout({ template, isBack = false, containerWidth,
 
   return (
     <div style={{ ...baseStyle, background: t.bgBack }}>
-      {/* Left dark panel with logo */}
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '42%', height: '100%', background: t.bg, clipPath: 'polygon(0 0, 85% 0, 100% 100%, 0 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
-        {logoEl}
-        <div style={{ position: 'absolute', bottom: '15%', fontFamily: t.fontBody, fontSize: `${8 * scale}px`, fontWeight: 500, color: t.accent, letterSpacing: '0.15em', textTransform: 'uppercase', textAlign: 'center' }}>{data.company}</div>
+      <div style={{
+        position: 'absolute', top: 0, left: 0, width: '42%', height: '100%',
+        background: t.bg,
+        clipPath: 'polygon(0 0, 85% 0, 100% 100%, 0 100%)',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }} />
+      <div style={{
+        position: 'absolute', bottom: '15%', left: '5%', width: '35%', textAlign: 'center',
+        fontFamily: t.fontBody, fontSize: `${8 * scale}px`, fontWeight: 500,
+        color: t.accent, letterSpacing: '0.15em', textTransform: 'uppercase',
+        pointerEvents: 'none', zIndex: 0,
+      }}>
+        {data.company}
       </div>
+      <div style={{ position: 'absolute', left: '48%', top: '40%', width: '50%', height: `${1 * scale}px`, background: t.textBack, opacity: 0.15, pointerEvents: 'none', zIndex: 0 }} />
 
-      {/* Right content area */}
-      <div style={{ position: 'absolute', top: 0, right: 0, width: '100%', height: '100%', boxSizing: 'border-box' }}>
-        {backName    && <div onClick={(e) => handleClick(e, backName)}    style={{ ...getSectionPos(sections, backName.id),    ...getSectionStyle(backName),    letterSpacing: '0.03em', display: 'flex', alignItems: 'center' }}>{data.firstName} {data.lastName}</div>}
-        {backTitle   && <div onClick={(e) => handleClick(e, backTitle)}   style={{ ...getSectionPos(sections, backTitle.id),   ...getSectionStyle(backTitle),   display: 'flex', alignItems: 'center' }}>{data.title}</div>}
-        <div style={{ position: 'absolute', left: '48%', top: '40%', width: '50%', height: `${1 * scale}px`, background: t.textBack, opacity: 0.15 }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
+        {logoEls}
+        {backName    && renderTextSection(backName)}
+        {backTitle   && renderTextSection(backTitle)}
         {backPhone   && renderTextSection(backPhone)}
         {backAddress && renderTextSection(backAddress)}
         {backEmail   && renderTextSection(backEmail)}

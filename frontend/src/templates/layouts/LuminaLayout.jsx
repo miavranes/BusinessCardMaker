@@ -28,29 +28,32 @@ export const luminaTemplate = {
   },
   sectionsFront: [
     { id: 'front-name', type: 'text', field: 'name', label: 'Name', x: 0.10, y: 0.40, width: 0.80, height: 0.20, fontSize: 28, fontFamily: "'Raleway', sans-serif", fontWeight: '700', color: '#ffffff' },
-    { id: 'front-logo', type: 'logo', label: 'Logo', x: 0.25, y: 0.25, width: 0.50, height: 0.50 },
+    { id: 'front-logo', type: 'logo', label: 'Logo', x: 0.25, y: 0.05, width: 0.50, height: 0.30 },
   ],
   sectionsBack: [
     { id: 'back-name',      type: 'text', field: 'name',      label: 'Name',      x: 0.05, y: 0.75, width: 0.35, height: 0.10, fontSize: 13, fontFamily: "'Raleway', sans-serif", fontWeight: '400', color: '#ffffff' },
     { id: 'back-title',     type: 'text', field: 'title',     label: 'Title',     x: 0.05, y: 0.87, width: 0.35, height: 0.08, fontSize: 10, fontFamily: "'Raleway', sans-serif", fontStyle: 'italic', color: '#f0e6df' },
-    { id: 'back-address',   type: 'text', field: 'address',   label: 'Address',   x: 0.50, y: 0.15, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
-    { id: 'back-city',      type: 'text', field: 'city',      label: 'City',      x: 0.50, y: 0.23, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
-    { id: 'back-email',     type: 'text', field: 'email',     label: 'Email',     x: 0.50, y: 0.40, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
-    { id: 'back-website',   type: 'text', field: 'website',   label: 'Website',   x: 0.50, y: 0.48, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
-    { id: 'back-instagram', type: 'text', field: 'instagram', label: 'Instagram', x: 0.50, y: 0.65, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
-    { id: 'back-facebook',  type: 'text', field: 'facebook',  label: 'Facebook',  x: 0.50, y: 0.73, width: 0.45, height: 0.08, fontSize: 8, color: '#555555' },
+    { id: 'back-address',   type: 'text', field: 'address',   label: 'Address',   x: 0.50, y: 0.18, width: 0.45, height: 0.08, fontSize: 8, fontFamily: "'Raleway', sans-serif", color: '#555555' },
+    { id: 'back-city',      type: 'text', field: 'city',      label: 'City',      x: 0.50, y: 0.26, width: 0.45, height: 0.08, fontSize: 8, fontFamily: "'Raleway', sans-serif", color: '#555555' },
+    { id: 'back-email',     type: 'text', field: 'email',     label: 'Email',     x: 0.50, y: 0.42, width: 0.45, height: 0.08, fontSize: 8, fontFamily: "'Raleway', sans-serif", color: '#555555' },
+    { id: 'back-website',   type: 'text', field: 'website',   label: 'Website',   x: 0.50, y: 0.50, width: 0.45, height: 0.08, fontSize: 8, fontFamily: "'Raleway', sans-serif", color: '#555555' },
+    { id: 'back-instagram', type: 'text', field: 'instagram', label: 'Instagram', x: 0.50, y: 0.65, width: 0.45, height: 0.08, fontSize: 8, fontFamily: "'Raleway', sans-serif", color: '#555555' },
+    { id: 'back-facebook',  type: 'text', field: 'facebook',  label: 'Facebook',  x: 0.50, y: 0.73, width: 0.45, height: 0.08, fontSize: 8, fontFamily: "'Raleway', sans-serif", color: '#555555' },
   ],
 };
 
 const findSection = (sections, baseId) =>
   sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
 
-const findLogoSection = (sections, isBack) => {
+const findLogoSections = (sections, isBack) => {
   const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
   const otherPrefix = isBack ? 'front-logo' : 'back-logo';
-  return (
-    sections.find(s => s.id === ownPrefix || s.id.startsWith(`${ownPrefix}-moved-`)) ||
-    sections.find(s => s.id.startsWith(`${otherPrefix}-moved-`))
+  return sections.filter(
+    s => s.type === 'logo' && (
+      s.id === ownPrefix ||
+      s.id.startsWith(`${ownPrefix}-moved-`) ||
+      s.id.startsWith(`${otherPrefix}-moved-`)
+    )
   );
 };
 
@@ -89,20 +92,16 @@ export default function LuminaLayout({ template, isBack = false, containerWidth,
     </div>
   );
 
-  const logoSection = findLogoSection(sections, isBack);
-  const logoEl = logoSection ? (
+  const logoSections = findLogoSections(sections, isBack);
+  const logoEls = logoSections.map(logoSection => (
     <img
+      key={logoSection.id}
       src={data.logoUrl || logoIcon}
       alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
-      style={{
-        ...getSectionPos(sections, logoSection.id),
-        objectFit: 'contain', cursor: 'pointer',
-        filter: data.logoUrl ? 'none' : 'brightness(0) invert(1)',
-        opacity: 0.2,
-      }}
+      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
     />
-  ) : null;
+  ));
 
   const movedInSections = findMovedInSections(sections, isBack);
 
@@ -110,11 +109,11 @@ export default function LuminaLayout({ template, isBack = false, containerWidth,
     const frontName = findSection(sections, 'front-name');
 
     return (
-      <div style={{ width: '100%', height: '100%', background: t.bg, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}>
-        {logoEl}
+      <div style={{ width: '100%', height: '100%', background: t.bg, position: 'relative', overflow: 'hidden', flexShrink: 0, boxSizing: 'border-box' }}>
+        {logoEls}
         {frontName && (
           <div onClick={(e) => handleClick(e, frontName)}
-            style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), position: 'relative', textAlign: 'center', letterSpacing: '0.3em' }}>
+            style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', letterSpacing: '0.3em' }}>
             {data.firstName} {data.lastName}
           </div>
         )}
@@ -133,33 +132,23 @@ export default function LuminaLayout({ template, isBack = false, containerWidth,
   const backFacebook  = findSection(sections, 'back-facebook');
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', display: 'flex', flexShrink: 0, boxSizing: 'border-box' }}>
-      {/* Left coloured panel */}
-      <div style={{ width: '45%', height: '100%', background: t.bg, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: `${28 * scale}px ${24 * scale}px`, boxSizing: 'border-box' }}>
-        {backName  && <div onClick={(e) => handleClick(e, backName)}  style={{ ...getSectionStyle(backName) }}>{data.firstName} {data.lastName}</div>}
-        {backTitle && <div onClick={(e) => handleClick(e, backTitle)} style={{ ...getSectionStyle(backTitle), marginTop: `${4 * scale}px` }}>{data.title}</div>}
-      </div>
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', flexShrink: 0, boxSizing: 'border-box' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '45%', height: '100%', background: t.bg, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: 0, left: '45%', width: '55%', height: '100%', background: '#ffffff', pointerEvents: 'none' }} />
 
-      {/* Right white panel */}
-      <div style={{ width: '55%', height: '100%', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `${24 * scale}px ${22 * scale}px`, gap: `${14 * scale}px`, boxSizing: 'border-box' }}>
-        <div>
-          <div style={{ fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', marginBottom: '4px' }}>Postal Address</div>
-          {backAddress && <div onClick={(e) => handleClick(e, backAddress)} style={getSectionStyle(backAddress)}>{data.address}</div>}
-          {backCity    && <div onClick={(e) => handleClick(e, backCity)}    style={getSectionStyle(backCity)}>{data.city}</div>}
-        </div>
-        <div>
-          <div style={{ fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', marginBottom: '4px' }}>Online</div>
-          {backEmail   && <div onClick={(e) => handleClick(e, backEmail)}   style={getSectionStyle(backEmail)}>{data.email}</div>}
-          {backWebsite && <div onClick={(e) => handleClick(e, backWebsite)} style={getSectionStyle(backWebsite)}>{data.website}</div>}
-        </div>
-        <div>
-          <div style={{ fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', marginBottom: '4px' }}>Social</div>
-          {backInstagram && <div onClick={(e) => handleClick(e, backInstagram)} style={getSectionStyle(backInstagram)}>{data.instagram}</div>}
-          {backFacebook  && <div onClick={(e) => handleClick(e, backFacebook)}  style={getSectionStyle(backFacebook)}>{data.facebook}</div>}
-        </div>
-      </div>
+       <div style={{ position: 'absolute', left: '50%', top: '10%', fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', pointerEvents: 'none' }}>Postal Address</div>
+      <div style={{ position: 'absolute', left: '50%', top: '36%', fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', pointerEvents: 'none' }}>Online</div>
+      <div style={{ position: 'absolute', left: '50%', top: '59%', fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', pointerEvents: 'none' }}>Social</div>
 
-      {/* Absolutely positioned sections that were dragged across */}
+      {logoEls}
+      {backName      && renderTextSection(backName)}
+      {backTitle     && renderTextSection(backTitle)}
+      {backAddress   && renderTextSection(backAddress)}
+      {backCity      && renderTextSection(backCity)}
+      {backEmail     && renderTextSection(backEmail)}
+      {backWebsite   && renderTextSection(backWebsite)}
+      {backInstagram && renderTextSection(backInstagram)}
+      {backFacebook  && renderTextSection(backFacebook)}
       {movedInSections.map(s => renderTextSection(s))}
     </div>
   );
