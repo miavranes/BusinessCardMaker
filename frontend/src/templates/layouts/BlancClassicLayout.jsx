@@ -7,6 +7,7 @@ export const blancClassicTemplate = {
   category: "minimal",
   name: "Blanc Classic",
   bg: "#ffffff",
+  bgBack: "#ffffff",
   accent: "#111111",
   text: "#111111",
   textMuted: "#999999",
@@ -46,18 +47,15 @@ const WebIcon = ({ color, size }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
 );
 
-// Map field name → icon component
 const FIELD_ICONS = {
   phone:   PhoneIcon,
   email:   MailIcon,
   website: WebIcon,
 };
 
-// Find a section by base ID, also matching moved copies (e.g. "back-name-moved-1234")
 const findSection = (sections, baseId) =>
   sections.find(s => s.id === baseId || s.id.startsWith(`${baseId}-moved-`));
 
-// Find any logo section present on this canvas side — own original or moved from other side
 const findLogoSection = (sections, isBack) => {
   const ownPrefix   = isBack ? 'back-logo'  : 'front-logo';
   const otherPrefix = isBack ? 'front-logo' : 'back-logo';
@@ -67,14 +65,20 @@ const findLogoSection = (sections, isBack) => {
   );
 };
 
-// Find all sections that were moved FROM the other canvas TO this one
-// e.g. on the front canvas, find any "back-xxx-moved-" sections
 const findMovedInSections = (sections, isBack) => {
   const otherPrefix = isBack ? 'front-' : 'back-';
   return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
 };
 
-export default function BlancClassicLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
+export default function BlancClassicLayout({
+  template,
+  isBack = false,
+  containerWidth,
+  userData,
+  sections = [],
+  onSelectSection,
+  backgroundColor,
+}) {
   const t = template || blancClassicTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
@@ -96,14 +100,19 @@ export default function BlancClassicLayout({ template, isBack = false, container
     return data[section.field] || '';
   };
 
-  // Render a contact section (phone/email/website) with its icon if applicable
   const renderTextSection = (section) => {
     const Icon = FIELD_ICONS[section.field];
     return (
       <div
         key={section.id}
         onClick={(e) => handleClick(e, section)}
-        style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center', gap: Icon ? '6px' : 0 }}
+        style={{
+          ...getSectionPos(sections, section.id),
+          ...getSectionStyle(section),
+          display: 'flex',
+          alignItems: 'center',
+          gap: Icon ? '6px' : 0,
+        }}
       >
         {Icon && <Icon color={t.accent} size={11 * scale} />}
         <span>{getContent(section)}</span>
@@ -111,13 +120,17 @@ export default function BlancClassicLayout({ template, isBack = false, container
     );
   };
 
+  const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
+
   const base = {
-    width: '100%', height: '100%', background: t.bg,
-    border: t.border || 'none', position: 'relative',
-    overflow: 'hidden', boxSizing: 'border-box',
+    width: '100%', height: '100%',
+    background: resolvedBg,
+    border: t.border || 'none',
+    position: 'relative',
+    overflow: 'hidden',
+    boxSizing: 'border-box',
   };
 
-  // Logo renders on whichever canvas it currently lives on
   const logoSection = findLogoSection(sections, isBack);
   const logoEl = logoSection ? (
     <img
@@ -128,7 +141,6 @@ export default function BlancClassicLayout({ template, isBack = false, container
     />
   ) : null;
 
-  // Sections moved from the other canvas onto this one — rendered generically with icons
   const movedInSections = findMovedInSections(sections, isBack);
 
   if (isBack) {
@@ -143,15 +155,19 @@ export default function BlancClassicLayout({ template, isBack = false, container
         {logoEl}
 
         {backName && (
-          <div onClick={(e) => handleClick(e, backName)}
-            style={{ ...getSectionPos(sections, backName.id), ...getSectionStyle(backName), display: 'flex', alignItems: 'center' }}>
+          <div
+            onClick={(e) => handleClick(e, backName)}
+            style={{ ...getSectionPos(sections, backName.id), ...getSectionStyle(backName), display: 'flex', alignItems: 'center' }}
+          >
             {data.firstName} {data.lastName}
           </div>
         )}
 
         {backTitle && (
-          <div onClick={(e) => handleClick(e, backTitle)}
-            style={{ ...getSectionPos(sections, backTitle.id), ...getSectionStyle(backTitle), display: 'flex', alignItems: 'center' }}>
+          <div
+            onClick={(e) => handleClick(e, backTitle)}
+            style={{ ...getSectionPos(sections, backTitle.id), ...getSectionStyle(backTitle), display: 'flex', alignItems: 'center' }}
+          >
             {data.title}
           </div>
         )}
@@ -162,7 +178,6 @@ export default function BlancClassicLayout({ template, isBack = false, container
         {backEmail   && renderTextSection(backEmail)}
         {backWebsite && renderTextSection(backWebsite)}
 
-        {/* Render any front sections that were moved onto the back canvas */}
         {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
@@ -176,15 +191,19 @@ export default function BlancClassicLayout({ template, isBack = false, container
       {logoEl}
 
       {frontName && (
-        <div onClick={(e) => handleClick(e, frontName)}
-          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center' }}>
+        <div
+          onClick={(e) => handleClick(e, frontName)}
+          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center' }}
+        >
           {data.firstName} {data.lastName}
         </div>
       )}
 
       {frontTitle && (
-        <div onClick={(e) => handleClick(e, frontTitle)}
-          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center' }}>
+        <div
+          onClick={(e) => handleClick(e, frontTitle)}
+          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center' }}
+        >
           {data.title}
         </div>
       )}

@@ -69,10 +69,14 @@ const findMovedInSections = (sections, isBack) => {
   return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
 };
 
-export default function RegentLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
+export default function RegentLayout({
+  template, isBack = false, containerWidth, userData, sections = [], onSelectSection, backgroundColor,
+}) {
   const t = template || regentTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
+
+  const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
 
   const getSectionStyle = (section) => ({
     ...getSectionTextStyle(section, scale, { color: t.textBack, fontFamily: t.fontBody }),
@@ -127,24 +131,24 @@ export default function RegentLayout({ template, isBack = false, containerWidth,
     const frontWebsite = findSection(sections, 'front-website');
 
     return (
-      <div style={{ ...baseStyle, background: t.bg }}>
+      <div style={{ ...baseStyle, background: resolvedBg }}>
         {logoEls}
         {frontCompany && (
           <div onClick={(e) => handleClick(e, frontCompany)}
-            style={{ ...getSectionPos(sections, frontCompany.id), ...getSectionStyle(frontCompany), letterSpacing: '0.2em', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ ...getSectionPos(sections, frontCompany.id), ...getSectionStyle(frontCompany), letterSpacing: '0.2em', display: 'flex', alignItems: 'center' }}>
             {data.company}
           </div>
         )}
         {frontSlogan && (
           <div onClick={(e) => handleClick(e, frontSlogan)}
-            style={{ ...getSectionPos(sections, frontSlogan.id), ...getSectionStyle(frontSlogan), letterSpacing: '0.05em', textAlign: 'center', opacity: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ ...getSectionPos(sections, frontSlogan.id), ...getSectionStyle(frontSlogan), letterSpacing: '0.05em', opacity: 0.8, display: 'flex', alignItems: 'center' }}>
             {data.slogan}
           </div>
         )}
         <div style={{ position: 'absolute', left: '50%', top: '66%', transform: 'translateX(-50%)', width: `${60 * scale}px`, height: `${1 * scale}px`, background: t.accent, opacity: 0.4, pointerEvents: 'none' }} />
         {frontWebsite && (
           <div onClick={(e) => handleClick(e, frontWebsite)}
-            style={{ ...getSectionPos(sections, frontWebsite.id), ...getSectionStyle(frontWebsite), letterSpacing: '0.08em', textAlign: 'center', opacity: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ ...getSectionPos(sections, frontWebsite.id), ...getSectionStyle(frontWebsite), letterSpacing: '0.08em', opacity: 0.75, display: 'flex', alignItems: 'center' }}>
             {data.website}
           </div>
         )}
@@ -161,13 +165,12 @@ export default function RegentLayout({ template, isBack = false, containerWidth,
   const backWebsite = findSection(sections, 'back-website');
 
   return (
-    <div style={{ ...baseStyle, background: t.bgBack }}>
+    <div style={{ ...baseStyle, background: resolvedBg }}>
       <div style={{
         position: 'absolute', top: 0, left: 0, width: '42%', height: '100%',
         background: t.bg,
         clipPath: 'polygon(0 0, 85% 0, 100% 100%, 0 100%)',
-        pointerEvents: 'none',
-        zIndex: 0,
+        pointerEvents: 'none', zIndex: 0,
       }} />
       <div style={{
         position: 'absolute', bottom: '15%', left: '5%', width: '35%', textAlign: 'center',

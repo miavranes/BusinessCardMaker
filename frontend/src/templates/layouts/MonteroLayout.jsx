@@ -65,10 +65,14 @@ const findMovedInSections = (sections, isBack) => {
   return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
 };
 
-export default function MonteroLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
+export default function MonteroLayout({
+  template, isBack = false, containerWidth, userData, sections = [], onSelectSection, backgroundColor,
+}) {
   const t = template || monteroTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
+
+  const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
 
   const getSectionStyle = (section) => ({
     ...getSectionTextStyle(section, scale, { color: t.text, fontFamily: t.fontBody }),
@@ -109,7 +113,7 @@ export default function MonteroLayout({ template, isBack = false, containerWidth
   const movedInSections = findMovedInSections(sections, isBack);
 
   const baseStyle = {
-    width: '100%', height: '100%', background: t.bg,
+    width: '100%', height: '100%', background: resolvedBg,
     position: 'relative', overflow: 'hidden',
     flexShrink: 0, boxSizing: 'border-box',
   };
@@ -145,13 +149,13 @@ export default function MonteroLayout({ template, isBack = false, containerWidth
       {logoEls}
       {frontName && (
         <div onClick={(e) => handleClick(e, frontName)}
-          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', letterSpacing: `${0.08 * scale}em` }}>
+          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center', letterSpacing: `${0.08 * scale}em` }}>
           {data.firstName} {data.lastName}
         </div>
       )}
       {frontTitle && (
         <div onClick={(e) => handleClick(e, frontTitle)}
-          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', letterSpacing: `${0.15 * scale}em` }}>
+          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center', letterSpacing: `${0.15 * scale}em` }}>
           {data.title}
         </div>
       )}

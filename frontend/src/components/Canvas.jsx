@@ -560,10 +560,16 @@ const Canvas = forwardRef(({
             onMouseDown={e => e.stopPropagation()}
           >
             <LayoutComponent
-              template={template} isBack={isBack} containerWidth={containerWidth}
-              userData={userData} sections={sections} selectedSection={selectedSection}
-              onSelectSection={onSelectSection} onUpdateSection={onUpdateSection}
+              template={template}
+              isBack={isBack}
+              containerWidth={containerWidth}
+              userData={userData}
+              sections={sections}
+              selectedSection={selectedSection}
+              onSelectSection={onSelectSection}
+              onUpdateSection={onUpdateSection}
               showPreview={showPreview}
+              backgroundColor={backgroundColor}
             />
           </div>
         )}

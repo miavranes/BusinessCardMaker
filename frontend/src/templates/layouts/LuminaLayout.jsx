@@ -62,10 +62,14 @@ const findMovedInSections = (sections, isBack) => {
   return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
 };
 
-export default function LuminaLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
+export default function LuminaLayout({
+  template, isBack = false, containerWidth, userData, sections = [], onSelectSection, backgroundColor,
+}) {
   const t = template || luminaTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
+
+  const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
 
   const getSectionStyle = (section) => ({
     ...getSectionTextStyle(section, scale, { color: t.text, fontFamily: t.fontBody }),
@@ -109,11 +113,11 @@ export default function LuminaLayout({ template, isBack = false, containerWidth,
     const frontName = findSection(sections, 'front-name');
 
     return (
-      <div style={{ width: '100%', height: '100%', background: t.bg, position: 'relative', overflow: 'hidden', flexShrink: 0, boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', height: '100%', background: resolvedBg, position: 'relative', overflow: 'hidden', flexShrink: 0, boxSizing: 'border-box' }}>
         {logoEls}
         {frontName && (
           <div onClick={(e) => handleClick(e, frontName)}
-            style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', letterSpacing: '0.3em' }}>
+            style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center', letterSpacing: '0.3em' }}>
             {data.firstName} {data.lastName}
           </div>
         )}
@@ -133,10 +137,11 @@ export default function LuminaLayout({ template, isBack = false, containerWidth,
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', flexShrink: 0, boxSizing: 'border-box' }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '45%', height: '100%', background: t.bg, pointerEvents: 'none' }} />
+      {/* Left panel uses resolvedBg, right panel stays white */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '45%', height: '100%', background: resolvedBg, pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', top: 0, left: '45%', width: '55%', height: '100%', background: '#ffffff', pointerEvents: 'none' }} />
 
-       <div style={{ position: 'absolute', left: '50%', top: '10%', fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', pointerEvents: 'none' }}>Postal Address</div>
+      <div style={{ position: 'absolute', left: '50%', top: '10%', fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', pointerEvents: 'none' }}>Postal Address</div>
       <div style={{ position: 'absolute', left: '50%', top: '36%', fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', pointerEvents: 'none' }}>Online</div>
       <div style={{ position: 'absolute', left: '50%', top: '59%', fontFamily: t.fontBody, fontSize: `${9 * scale}px`, fontWeight: 500, color: '#1a1a1a', letterSpacing: '0.08em', pointerEvents: 'none' }}>Social</div>
 

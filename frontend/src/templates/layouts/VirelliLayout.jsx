@@ -64,10 +64,14 @@ const findMovedInSections = (sections, isBack) => {
   return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
 };
 
-export default function VirelliLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
+export default function VirelliLayout({
+  template, isBack = false, containerWidth, userData, sections = [], onSelectSection, backgroundColor,
+}) {
   const t = template || virelliTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
+
+  const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
 
   const getSectionStyle = (section) => ({
     ...getSectionTextStyle(section, scale, { color: t.text, fontFamily: t.fontBody }),
@@ -111,7 +115,11 @@ export default function VirelliLayout({ template, isBack = false, containerWidth
 
   const movedInSections = findMovedInSections(sections, isBack);
 
-  const base = { width: '100%', height: '100%', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
+  const base = {
+    width: '100%', height: '100%',
+    background: resolvedBg,
+    position: 'relative', overflow: 'hidden', boxSizing: 'border-box',
+  };
 
   if (isBack) {
     const backName    = findSection(sections, 'back-name');
@@ -120,11 +128,10 @@ export default function VirelliLayout({ template, isBack = false, containerWidth
     const backWebsite = findSection(sections, 'back-website');
 
     return (
-      <div style={{ ...base, background: t.bg }}>
+      <div style={base}>
         <div style={{ position: 'absolute', top: `${20 * scale}px`, right: `${20 * scale}px`, width: `${60 * scale}px`, height: `${60 * scale}px`, pointerEvents: 'none', zIndex: 0 }}>
           <img src={qrCode} alt="QR" style={{ width: '100%', height: '100%' }} />
         </div>
-
         {logoEls}
         {backName    && renderTextSection(backName)}
         {backPhone   && renderTextSection(backPhone)}
@@ -139,17 +146,17 @@ export default function VirelliLayout({ template, isBack = false, containerWidth
   const frontTitle = findSection(sections, 'front-title');
 
   return (
-    <div style={{ ...base, background: t.bgBack }}>
+    <div style={base}>
       {logoEls}
       {frontName && (
         <div onClick={(e) => handleClick(e, frontName)}
-          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), display: 'flex', alignItems: 'center' }}>
           {data.firstName} {data.lastName}
         </div>
       )}
       {frontTitle && (
         <div onClick={(e) => handleClick(e, frontTitle)}
-          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), display: 'flex', alignItems: 'center' }}>
           {data.title}
         </div>
       )}

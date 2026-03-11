@@ -69,10 +69,14 @@ const findMovedInSections = (sections, isBack) => {
   return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
 };
 
-export default function NoirClassicLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
+export default function NoirClassicLayout({
+  template, isBack = false, containerWidth, userData, sections = [], onSelectSection, backgroundColor,
+}) {
   const t = template || noirClassicTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
+
+  const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
 
   const getSectionStyle = (section) => ({
     ...getSectionTextStyle(section, scale, { color: t.text, fontFamily: t.fontBody }),
@@ -117,7 +121,9 @@ export default function NoirClassicLayout({ template, isBack = false, containerW
   const movedInSections = findMovedInSections(sections, isBack);
 
   const baseStyle = {
-    width: '100%', height: '100%', position: 'relative', overflow: 'hidden',
+    width: '100%', height: '100%',
+    background: resolvedBg,
+    position: 'relative', overflow: 'hidden',
     flexShrink: 0, boxSizing: 'border-box',
   };
 
@@ -129,7 +135,7 @@ export default function NoirClassicLayout({ template, isBack = false, containerW
     const backWebsite = findSection(sections, 'back-website');
 
     return (
-      <div style={{ ...baseStyle, background: t.bgBack }}>
+      <div style={baseStyle}>
         {logoEls}
         {backName && (
           <div onClick={(e) => handleClick(e, backName)}
@@ -155,17 +161,17 @@ export default function NoirClassicLayout({ template, isBack = false, containerW
   const frontTitle = findSection(sections, 'front-title');
 
   return (
-    <div style={{ ...baseStyle, background: t.bg }}>
+    <div style={baseStyle}>
       {logoEls}
       {frontName && (
         <div onClick={(e) => handleClick(e, frontName)}
-          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), letterSpacing: '0.15em', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          style={{ ...getSectionPos(sections, frontName.id), ...getSectionStyle(frontName), letterSpacing: '0.15em', display: 'flex', alignItems: 'center' }}>
           {data.firstName} {data.lastName}
         </div>
       )}
       {frontTitle && (
         <div onClick={(e) => handleClick(e, frontTitle)}
-          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), letterSpacing: '0.2em', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          style={{ ...getSectionPos(sections, frontTitle.id), ...getSectionStyle(frontTitle), letterSpacing: '0.2em', display: 'flex', alignItems: 'center' }}>
           {data.title}
         </div>
       )}

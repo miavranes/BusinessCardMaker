@@ -7,7 +7,8 @@
   backdrop-filter: blur(20px);
   border-right: 1px solid rgba(20, 20, 20, 0.95);
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: sticky;
   top: 0;
 }
@@ -30,6 +31,11 @@
   padding: 20px 20px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(15, 15, 25, 0.95);
+  backdrop-filter: blur(20px);
 }
 
 .sb-title {
@@ -40,48 +46,83 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-.sb-canvas-toggle {
+/* ─── Undo / Redo row ───────────────────────── */
+.sb-undo-row {
   display: flex;
   gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 14px 10px;
   flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sb-undo-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.sb-undo-btn:hover:not(.disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sb-undo-btn.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ─── Front / Back canvas toggle ────────────── */
+.sb-canvas-toggle {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sb-canvas-btn {
   flex: 1;
-  padding: 8px 0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  background: transparent;
-  font-size: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  letter-spacing: 0.05em;
   transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .sb-canvas-btn:hover {
-  border-color: rgba(99, 102, 241, 0.5);
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .sb-canvas-btn.active {
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  border-color: transparent;
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
 }
 
-/* ─── Scroll wrapper for content below toggle ───────────────── */
-.sidebar > *:not(.sb-header):not(.sb-canvas-toggle) {
-  overflow-y: auto;
+/* ─── Scroll wrapper for content below toggle ── */
+.sidebar > *:not(.sb-header):not(.sb-canvas-toggle):not(.sb-undo-row) {
   overflow-x: hidden;
 }
 
-/* ─── Panel (edit mode) ─────────────────────────────────────── */
+/* ─── Panel (edit mode) ─────────────────────── */
 .sb-panel {
   display: flex;
   flex-direction: column;
@@ -99,6 +140,68 @@
   margin: 8px 0 4px;
 }
 
+/* ─── Background swatches ───────────────────── */
+.sb-bg-row {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 8px;
+}
+
+.sb-bg-swatch-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  flex: 1;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.sb-bg-swatch-label:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.sb-bg-swatch-label--active {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.sb-bg-swatch-label .sb-swatch-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sb-bg-swatch-label .sb-swatch-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  position: relative;
+  overflow: hidden;
+  display: block;
+  cursor: pointer;
+}
+
+.sb-bg-swatch-label .sb-swatch-wrap input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+/* ─── Search ────────────────────────────────── */
 .sb-search-wrap {
   position: relative;
   padding: 12px 16px 8px;
@@ -155,6 +258,7 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* ─── Icon categories ───────────────────────── */
 .sb-cats {
   display: flex;
   flex-direction: column;
@@ -182,11 +286,12 @@
 }
 
 .sb-cat-btn.active {
-  background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.25));
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.25));
   color: #a5b4fc;
   font-weight: 700;
 }
 
+/* ─── Icon color row ────────────────────────── */
 .sb-icon-color-row {
   display: flex;
   align-items: center;
@@ -195,12 +300,14 @@
   flex-shrink: 0;
 }
 
+/* ─── Icons grid ────────────────────────────── */
 .sb-icons-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding: 4px 16px 8px;
   overflow-y: auto;
+  min-height: 220px;
 }
 
 .sb-icon-btn {
@@ -241,6 +348,7 @@
   text-align: center;
 }
 
+/* ─── Upload / Text buttons ─────────────────── */
 .sb-upload-section {
   flex-shrink: 0;
   padding-bottom: 16px;
@@ -271,6 +379,7 @@
   color: #a5b4fc;
 }
 
+/* ─── Divider ────────────────────────────────── */
 .sb-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.08);
@@ -278,6 +387,7 @@
   flex-shrink: 0;
 }
 
+/* ─── Edit controls ─────────────────────────── */
 .sb-edit-header {
   display: flex;
   align-items: center;
@@ -342,6 +452,7 @@
   opacity: 0;
 }
 
+/* ─── Stepper ────────────────────────────────── */
 .sb-stepper {
   display: flex;
   align-items: center;
@@ -391,6 +502,7 @@
   min-width: 22px;
 }
 
+/* ─── Size grid ──────────────────────────────── */
 .sb-size-grid {
   display: flex;
   flex-direction: column;
@@ -411,6 +523,7 @@
   width: 14px;
 }
 
+/* ─── Slider ─────────────────────────────────── */
 .sb-slider-row {
   display: flex;
   align-items: center;
@@ -446,6 +559,7 @@
   text-align: right;
 }
 
+/* ─── Misc ───────────────────────────────────── */
 .sb-empty {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.2);
@@ -462,49 +576,13 @@
   letter-spacing: 0.03em;
 }
 
-/* ─── CANVAS TOGGLE ─────────────────────────── */
-.sb-canvas-toggle {
-  display: flex;
-  gap: 6px;
-  padding: 12px 16px 8px;
-  flex-shrink: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.sb-canvas-btn {
-  flex: 1;
-  padding: 10px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.sb-canvas-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.9);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.sb-canvas-btn.active {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #ffffff;
-  border-color: transparent;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
-}
-
+/* ─── Canvas active state ────────────────────── */
 .canvas-side {
   cursor: pointer;
   border-radius: 12px;
   outline: 2px solid transparent;
   outline-offset: 4px;
-  transition: outline-color 0.7s ease, box-shadow 0.7s ease; /* sporije */
+  transition: outline-color 0.7s ease, box-shadow 0.7s ease;
 }
 
 .canvas-side--active {
@@ -521,7 +599,7 @@
   letter-spacing: 0.05em;
   opacity: 0;
   transform: translateX(-6px);
-  animation: badge-in 0.4s ease 0.1s forwards; 
+  animation: badge-in 0.4s ease 0.1s forwards;
 }
 
 @keyframes badge-in {
@@ -529,95 +607,4 @@
     opacity: 1;
     transform: translateX(0);
   }
-}
-
-.sb-undo-row {
-  display: flex;
-  gap: 8px;
-  padding: 8px 14px;
-}
-
-.sb-undo-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 10px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.8);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
-}
-
-.sb-undo-btn:hover:not(.disabled) {
-  background: rgba(255,255,255,0.12);
-}
-
-.sb-undo-btn.disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.sb-bg-row {
-  display: flex;
-  gap: 8px;
-  padding: 0 16px 8px;
-}
-
-.sb-bg-swatch-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  flex: 1;
-  padding: 8px 6px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.sb-bg-swatch-label:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
-}
-
-.sb-bg-swatch-label--active {
-  border-color: rgba(99, 102, 241, 0.6);
-  background: rgba(99, 102, 241, 0.08);
-}
-
-.sb-bg-swatch-label .sb-swatch-label {
-  font-size: 10px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.sb-bg-swatch-label .sb-swatch-wrap {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  position: relative;
-  overflow: hidden;
-  display: block;
-  cursor: pointer;
-}
-
-.sb-bg-swatch-label .sb-swatch-wrap input[type="color"] {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  border: none;
-  padding: 0;
 }

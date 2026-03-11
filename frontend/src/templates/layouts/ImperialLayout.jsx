@@ -57,10 +57,14 @@ const findMovedInSections = (sections, isBack) => {
   return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
 };
 
-export default function ImperialLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
+export default function ImperialLayout({
+  template, isBack = false, containerWidth, userData, sections = [], onSelectSection, backgroundColor,
+}) {
   const t = template || imperialTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
+
+  const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
 
   const getSectionStyle = (section) => ({
     ...getSectionTextStyle(section, scale, { color: t.textBack, fontFamily: t.fontBody }),
@@ -94,7 +98,7 @@ export default function ImperialLayout({ template, isBack = false, containerWidt
     </div>
   );
 
- const renderTextSection = (section) => (
+  const renderTextSection = (section) => (
     <div
       key={section.id}
       onClick={(e) => handleClick(e, section)}
@@ -125,7 +129,8 @@ export default function ImperialLayout({ template, isBack = false, containerWidt
   if (!isBack) {
     return (
       <div style={{
-        width: '100%', height: '100%', background: t.bgBack,
+        width: '100%', height: '100%',
+        background: resolvedBg,
         backgroundImage: `radial-gradient(ellipse at 30% 40%, rgba(255,255,255,0.03) 0%, transparent 60%)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative', boxSizing: 'border-box',
@@ -144,7 +149,7 @@ export default function ImperialLayout({ template, isBack = false, containerWidt
   const backInstagram = findSection(sections, 'back-instagram');
 
   return (
-    <div style={{ width: '100%', height: '100%', background: t.bg, position: 'relative', boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', height: '100%', background: resolvedBg, position: 'relative', boxSizing: 'border-box' }}>
       {logoEls}
 
       {backName && (

@@ -51,10 +51,14 @@ const findMovedInSections = (sections, isBack) => {
   return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
 };
 
-export default function BellmontLayout({ template, isBack = false, containerWidth, userData, sections = [], onSelectSection }) {
+export default function BellmontLayout({
+  template, isBack = false, containerWidth, userData, sections = [], onSelectSection, backgroundColor,
+}) {
   const t = template || bellmontTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
+
+  const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
 
   const getSectionStyle = (section) => ({
     ...getSectionTextStyle(section, scale, { color: t.text, fontFamily: 'Jost, sans-serif' }),
@@ -102,7 +106,7 @@ export default function BellmontLayout({ template, isBack = false, containerWidt
     const backWebsite = findSection(sections, 'back-website');
 
     return (
-      <div style={{ width: '100%', height: '100%', background: t.bgBack, position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', height: '100%', background: resolvedBg, position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
         {logoEls}
         {backName && (
           <div onClick={(e) => handleClick(e, backName)}
@@ -116,31 +120,16 @@ export default function BellmontLayout({ template, isBack = false, containerWidt
             {data.title}
           </div>
         )}
-        {backPhone && (
-          <div onClick={(e) => handleClick(e, backPhone)}
-            style={{ ...getSectionPos(sections, backPhone.id), ...getSectionStyle(backPhone), display: 'flex', alignItems: 'center' }}>
-            {data.phone}
-          </div>
-        )}
-        {backEmail && (
-          <div onClick={(e) => handleClick(e, backEmail)}
-            style={{ ...getSectionPos(sections, backEmail.id), ...getSectionStyle(backEmail), display: 'flex', alignItems: 'center' }}>
-            {data.email}
-          </div>
-        )}
-        {backWebsite && (
-          <div onClick={(e) => handleClick(e, backWebsite)}
-            style={{ ...getSectionPos(sections, backWebsite.id), ...getSectionStyle(backWebsite), display: 'flex', alignItems: 'center' }}>
-            {data.website}
-          </div>
-        )}
+        {backPhone   && renderTextSection(backPhone)}
+        {backEmail   && renderTextSection(backEmail)}
+        {backWebsite && renderTextSection(backWebsite)}
         {movedInSections.map(s => renderTextSection(s))}
       </div>
     );
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', background: t.bg, position: 'relative', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', height: '100%', background: resolvedBg, position: 'relative', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', boxSizing: 'border-box' }}>
       {logoEls}
       {movedInSections.map(s => renderTextSection(s))}
     </div>
