@@ -104,11 +104,27 @@ function svgFromButton(buttonEl) {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
 }
 
+// QR icon as inline SVG component (no external dep needed for the sidebar button)
+function QRIcon({ size = 15, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="5" y="5" width="3" height="3" fill={color} stroke="none" />
+      <rect x="16" y="5" width="3" height="3" fill={color} stroke="none" />
+      <rect x="5" y="16" width="3" height="3" fill={color} stroke="none" />
+      <path d="M14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" fill={color} stroke="none" />
+    </svg>
+  );
+}
+
 export default function Sidebar({
   elements, selectedElement,
   activeCanvas, onSetActiveCanvas,
   onAddElement, onUpdateElement, onDeleteElement,
   onAddTextSection,
+  onAddQRCode,
   canUndo, canRedo, onUndo, onRedo,
   bgFront, bgBack, onChangeBgFront, onChangeBgBack,
 }) {
@@ -116,6 +132,8 @@ export default function Sidebar({
   const [activeCat, setActiveCat] = useState('shapes');
   const [iconColor, setIconColor] = useState('#8b5cf6');
   const [search, setSearch] = useState('');
+  const [qrLoading, setQrLoading] = useState(false);
+
 
   const handleIconDragStart = (e) => {
     const dataUrl = svgFromButton(e.currentTarget);
@@ -161,6 +179,16 @@ export default function Sidebar({
     };
     img.src = url;
     e.target.value = '';
+  };
+
+  const handleAddQRCode = async () => {
+    if (!onAddQRCode || qrLoading) return;
+    setQrLoading(true);
+    try {
+      await onAddQRCode();
+    } finally {
+      setQrLoading(false);
+    }
   };
 
   const allIcons = CATEGORIES.flatMap(c => c.icons);
@@ -298,6 +326,48 @@ export default function Sidebar({
           Add Text
         </button>
       </div>
+
+      <div className="sb-divider" style={{ margin: '8px 14px' }} />
+
+      {/* ── QR Code Section ── */}
+      <div className="sb-upload-section">
+        <p className="sb-section-title" style={{ padding: '0 16px' }}>QR Code</p>
+        <p style={{
+          fontSize: '10px',
+          color: 'rgba(255,255,255,0.4)',
+          padding: '0 16px 6px',
+          margin: 0,
+          lineHeight: 1.4,
+        }}>
+          Encodes your contact info as a vCard. Drag &amp; resize freely on the canvas.
+        </p>
+        <button
+          className="sb-upload-btn sb-qr-btn"
+          onClick={handleAddQRCode}
+          disabled={qrLoading}
+          title="Add a QR code that encodes your name, phone and email as a vCard"
+          style={{ opacity: qrLoading ? 0.6 : 1, cursor: qrLoading ? 'wait' : 'pointer' }}
+        >
+          <QRIcon size={15} />
+          {qrLoading ? 'Generating…' : 'Add QR Code'}
+        </button>
+        <p style={{
+          fontSize: '9px',
+          color: 'rgba(255,255,255,0.25)',
+          padding: '4px 16px 0',
+          margin: 0,
+          lineHeight: 1.4,
+        }}>
+          Auto-updates when you change contact fields.
+        </p>
+      </div>
+      <button
+          className="sb-upload-btn"
+          onClick={onDownloadImages}
+        >
+          <Download size={15} />
+          Download Images
+        </button>
     </aside>
   );
 }

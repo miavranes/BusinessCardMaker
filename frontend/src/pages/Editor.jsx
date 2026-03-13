@@ -7,6 +7,7 @@ import { reorderSections } from '../sectionSchema';
 import Canvas from '../components/Canvas';
 import FloatingEditor from '../components/FloatingEditor';
 import Sidebar from '../components/Sidebar';
+import { buildVCard } from '../qrGenerator';
 import '../css/Editor.css';
 
 // ---------------------------------------------------------------------------
@@ -297,6 +298,43 @@ export default function Editor() {
     setSelectedElement(null);
   };
 
+  // -------------------------------------------------------------------------
+  // QR Code helpers
+  // -------------------------------------------------------------------------
+
+  // Add a QR element — stores vcardString directly on the element.
+  // Canvas.jsx renders it via QRCode.toCanvas() with no Image element needed.
+  const handleAddQRCode = useCallback(() => {
+    const allSections = [...sectionsFront, ...sectionsBack];
+    const vcard = buildVCard(userData, allSections);
+    const size  = 90;
+    addElement({
+      id:           `qr-${Date.now()}`,
+      type:         'qr',
+      x:            (580 - size) / 2,
+      y:            (330 - size) / 2,
+      width:        size,
+      height:       size,
+      vcardString:  vcard,
+      qrFg:         '#000000',
+      qrBg:         '#ffffff',
+      opacity:      1,
+    });
+  }, [userData, sectionsFront, sectionsBack, addElement]);
+
+  // Auto-update vcardString on all QR elements whenever userData changes.
+  const userDataKey = JSON.stringify(userData);
+  useEffect(() => {
+    const qrElements = [...elementsFront, ...elementsBack].filter(el => el.type === 'qr');
+    if (!qrElements.length) return;
+    const allSections = [...sectionsFront, ...sectionsBack];
+    const vcard = buildVCard(userData, allSections);
+    qrElements.forEach(qrEl => {
+      silentUpdateElement(qrEl.id, { vcardString: vcard });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userDataKey]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e) => {
@@ -328,6 +366,27 @@ export default function Editor() {
     ? { ...selectedTemplate, sectionsFront, sectionsBack }
     : null;
 
+   
+    const downloadCanvasImages = () => {
+
+      const download = (canvas, name) => {
+        if (!canvas) return;
+
+        const url = canvas.toDataURL("image/png");
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      download(canvasFrontRef.current, "card-front.png");
+      download(canvasBackRef.current, "card-back.png");
+    };
+
+
   return (
     <div className="editor-container" ref={editorRef}>
 
@@ -340,6 +399,7 @@ export default function Editor() {
         onUpdateElement={updateElement}
         onDeleteElement={deleteElement}
         onAddTextSection={handleAddTextSection}
+        onAddQRCode={handleAddQRCode}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undo}
@@ -349,6 +409,7 @@ export default function Editor() {
         bgBack={bgBack}
         onChangeBgFront={setBgFront}
         onChangeBgBack={setBgBack}
+        onDownloadImages={downloadCanvasImages}
       />
 
       <div className={`canvas-area${(selectedSection || selectedElement) ? ' canvas-area--shift' : ''}`}>
