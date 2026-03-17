@@ -119,14 +119,25 @@ function QRIcon({ size = 15, color = 'currentColor' }) {
   );
 }
 
-export default function Sidebar({
-  elements, selectedElement,
-  activeCanvas, onSetActiveCanvas,
-  onAddElement, onUpdateElement, onDeleteElement,
+export default function Sidebar({ 
+  elements,
+  selectedElement,
+  activeCanvas,
+  onSetActiveCanvas,
+  onAddElement,
+  onUpdateElement,
+  onDeleteElement,
   onAddTextSection,
   onAddQRCode,
-  canUndo, canRedo, onUndo, onRedo,
-  bgFront, bgBack, onChangeBgFront, onChangeBgBack,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  bgFront,
+  bgBack,
+  onChangeBgFront,
+  onChangeBgBack,
+  onDownloadImages, 
 }) {
   const fileRef = useRef(null);
   const [activeCat, setActiveCat] = useState('shapes');

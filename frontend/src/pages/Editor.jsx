@@ -10,6 +10,9 @@ import Sidebar from '../components/Sidebar';
 import { buildVCard } from '../qrGenerator';
 import '../css/Editor.css';
 
+const CANVAS_W = 580;
+const CANVAS_H = 330;
+
 // ---------------------------------------------------------------------------
 // useHistory — undo/redo stack
 // ---------------------------------------------------------------------------
@@ -249,7 +252,6 @@ export default function Editor() {
     if (!selectedElement) return;
     const el = allElements.find(e => e.id === selectedElement);
     if (!el) return;
-    const CANVAS_W = 580;
     const canvasRef = activeCanvas === 'front' ? canvasFrontRef : canvasBackRef;
     if (!canvasRef.current) return;
     const parentRect = canvasRef.current.getBoundingClientRect();
@@ -261,7 +263,7 @@ export default function Editor() {
     setElementAnchorRect({ left, right: left + widthPx, top, bottom: top + heightPx, width: widthPx, height: heightPx });
   }, [allElements, selectedElement, activeCanvas]);
 
-  // ── Background colors (live, not in undo history) ──
+  // ── Background colors ──
   const [bgFront, setBgFront] = useState(selectedTemplate?.bg     || '#ffffff');
   const [bgBack,  setBgBack]  = useState(selectedTemplate?.bgBack || '#ffffff');
 
@@ -301,9 +303,6 @@ export default function Editor() {
   // -------------------------------------------------------------------------
   // QR Code helpers
   // -------------------------------------------------------------------------
-
-  // Add a QR element — stores vcardString directly on the element.
-  // Canvas.jsx renders it via QRCode.toCanvas() with no Image element needed.
   const handleAddQRCode = useCallback(() => {
     const allSections = [...sectionsFront, ...sectionsBack];
     const vcard = buildVCard(userData, allSections);
@@ -311,8 +310,8 @@ export default function Editor() {
     addElement({
       id:           `qr-${Date.now()}`,
       type:         'qr',
-      x:            (580 - size) / 2,
-      y:            (330 - size) / 2,
+      x:            (CANVAS_W - size) / 2,
+      y:            (CANVAS_H - size) / 2,
       width:        size,
       height:       size,
       vcardString:  vcard,
@@ -366,26 +365,62 @@ export default function Editor() {
     ? { ...selectedTemplate, sectionsFront, sectionsBack }
     : null;
 
-   
-    const downloadCanvasImages = () => {
+  // -------------------------------------------------------------------------
+  // Download — uses html2canvas to snapshot the entire .canvas-wrapper div
+  // which contains all layers: background, LayoutComponent, canvas, QR overlays
+  // -------------------------------------------------------------------------
+  const downloadCanvasImages = useCallback(async () => {
+    // Temporarily deselect so selection handles don't appear in export
+    const prevSelectedSection = selectedSection;
+    const prevSelectedElement = selectedElement;
+    setSelectedSection(null);
+    setSelectedElement(null);
 
-      const download = (canvas, name) => {
-        if (!canvas) return;
+    // Wait one frame for React to re-render without selection UI
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 50)));
 
-        const url = canvas.toDataURL("image/png");
+    const exportSide = async (canvasRef, name) => {
+      const canvasEl = canvasRef.current;
+      if (!canvasEl) return;
+      const wrapper = canvasEl.closest('.canvas-wrapper');
+      if (!wrapper) return;
 
-        const a = document.createElement("a");
+      try {
+        const { default: html2canvas } = await import('html2canvas');
+        const snap = await html2canvas(wrapper, {
+          backgroundColor: null,
+          scale: CANVAS_W / wrapper.offsetWidth,
+          useCORS: true,
+          allowTaint: true,
+          // Hide selection overlays and resize handles during export
+          ignoreElements: (el) =>
+            el.classList?.contains('resize-handle') ||
+            el.classList?.contains('resize-nw') ||
+            el.classList?.contains('resize-ne') ||
+            el.classList?.contains('resize-sw') ||
+            el.classList?.contains('resize-se'),
+        });
+
+        const url = snap.toDataURL('image/png');
+        const a = document.createElement('a');
         a.href = url;
         a.download = name;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-      };
-
-      download(canvasFrontRef.current, "card-front.png");
-      download(canvasBackRef.current, "card-back.png");
+      } catch (err) {
+        console.error('Export failed:', err);
+        alert('Export failed. Make sure html2canvas is installed:\nnpm install html2canvas');
+      }
     };
 
+    await exportSide(canvasFrontRef, 'card-front.png');
+    await exportSide(canvasBackRef,  'card-back.png');
+
+    // Restore selection state
+    setSelectedSection(prevSelectedSection);
+    setSelectedElement(prevSelectedElement);
+  }, [selectedSection, selectedElement]);
 
   return (
     <div className="editor-container" ref={editorRef}>
@@ -404,7 +439,6 @@ export default function Editor() {
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
-        // Background color props
         bgFront={bgFront}
         bgBack={bgBack}
         onChangeBgFront={setBgFront}

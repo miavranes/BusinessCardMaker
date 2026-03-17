@@ -60,7 +60,7 @@ const Canvas = forwardRef(({
     });
   }, [qrKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Reconstruct imgElement from src when missing (happens after canvas transfer) ──
+  // ── Reconstruct imgElement from src when missing ──
   useEffect(() => {
     const imageEls = elements.filter(el => el.type === 'image' && !el.imgElement && el.src);
     if (!imageEls.length) return;
@@ -78,7 +78,13 @@ const Canvas = forwardRef(({
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!template) { ctx.fillStyle = backgroundColor; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H); }
+
+    // Only draw background on canvas when there is no LayoutComponent.
+    // When a template has a layoutComponent, the background is part of the HTML layer.
+    if (!template?.layoutComponent) {
+      ctx.fillStyle = backgroundColor || '#ffffff';
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
 
     sections?.forEach(section => {
       if (section.type !== 'text') return;
@@ -101,17 +107,15 @@ const Canvas = forwardRef(({
     elements.forEach(el => {
       ctx.save();
       ctx.globalAlpha = el.opacity ?? 1;
-      if      (el.type === 'text')                      drawText(ctx, el);
-      else if (el.type === 'shape')                     drawShape(ctx, el);
-      else if (el.type === 'image' && el.imgElement)    drawImage(ctx, el);
+      if      (el.type === 'text')                   drawText(ctx, el);
+      else if (el.type === 'shape')                  drawShape(ctx, el);
+      else if (el.type === 'image' && el.imgElement) drawImage(ctx, el);
       else if (el.type === 'image' && !el.imgElement) {
-        // imgElement missing (e.g. after canvas transfer) — draw placeholder so element is visible & selectable
         ctx.fillStyle = '#f1f5f9';
         ctx.fillRect(el.x, el.y, el.width||60, el.height||60);
         ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
         ctx.strokeRect(el.x, el.y, el.width||60, el.height||60);
       }
-      // 'qr' is rendered as <img> overlay — skip here
       ctx.restore();
 
       if (!showPreview && el.id === selectedElement && el.type !== 'qr') {
@@ -200,7 +204,6 @@ const Canvas = forwardRef(({
     return { x: (e.clientX - rect.left) * (CANVAS_W / rect.width), y: (e.clientY - rect.top) * (CANVAS_H / rect.height) };
   }
 
-  // ── Notify FloatingEditor position for any element ──
   const notifySelect = useCallback((el) => {
     if (!onElementSelect || !containerRef.current) return;
     const b = getBounds(el);
@@ -217,7 +220,6 @@ const Canvas = forwardRef(({
     if (showPreview) return;
     const { x, y } = getMousePos(e);
 
-    // Check resize handles on selected element
     if (selectedElement) {
       const el = elements.find(el => el.id === selectedElement);
       if (el) {
@@ -238,10 +240,9 @@ const Canvas = forwardRef(({
       }
     }
 
-    // Hit-test elements (reverse order = top first)
     for (let i = elements.length - 1; i >= 0; i--) {
       const el = elements[i];
-      if (el.type === 'qr') continue; // QR handled by overlay div
+      if (el.type === 'qr') continue;
       const b = getBounds(el);
       if (x >= b.x && x <= b.x+b.w && y >= b.y && y <= b.y+b.h) {
         setSelectedElement(el.id);
@@ -408,17 +409,35 @@ const Canvas = forwardRef(({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`canvas-element ${showPreview ? '' : 'draggable'}`}
-          style={{ position:'relative', zIndex:2, background:'transparent', cursor: resizing ? `${resizing.corner}-resize` : (dragging ? 'grabbing' : 'default'), opacity: dragOverCanvas ? 0.7 : 1, transition: dragOverCanvas ? 'opacity 0.15s' : 'none' }}
+          style={{
+            position: 'relative', zIndex: 2, background: 'transparent',
+            cursor: resizing ? `${resizing.corner}-resize` : (dragging ? 'grabbing' : 'default'),
+            opacity: dragOverCanvas ? 0.7 : 1,
+            transition: dragOverCanvas ? 'opacity 0.15s' : 'none',
+          }}
         />
-        <div style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', background: backgroundColor||'#ffffff', zIndex:0, pointerEvents:'none' }} />
+
+        {/* Background div — only when no LayoutComponent (which provides its own background) */}
+        {!LayoutComponent && (
+          <div style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', background: backgroundColor||'#ffffff', zIndex:0, pointerEvents:'none' }} />
+        )}
 
         {LayoutComponent && (
-          <div style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', zIndex:1, pointerEvents:'none', background:'transparent' }} onMouseDown={e => e.stopPropagation()}>
-            <LayoutComponent template={template} isBack={isBack} containerWidth={containerWidth} userData={userData} sections={sections} selectedSection={selectedSection} onSelectSection={onSelectSection} onUpdateSection={onUpdateSection} showPreview={showPreview} backgroundColor={backgroundColor} />
+          <div
+            className="layout-component-wrapper"
+            style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', zIndex:1, pointerEvents:'none', background:'transparent' }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <LayoutComponent
+              template={template} isBack={isBack} containerWidth={containerWidth}
+              userData={userData} sections={sections} selectedSection={selectedSection}
+              onSelectSection={onSelectSection} onUpdateSection={onUpdateSection}
+              showPreview={showPreview} backgroundColor={backgroundColor}
+            />
           </div>
         )}
 
-        {/* ── QR overlays — <img> tags so they're always crisp & scannable ── */}
+        {/* ── QR overlays ── */}
         {elements.filter(el => el.type === 'qr').map(el => {
           const dataUrl = qrDataUrls[el.id];
           const isSelected = el.id === selectedElement;
@@ -426,10 +445,10 @@ const Canvas = forwardRef(({
           return (
             <div
               key={el.id}
+              data-qr-id={el.id}
               onMouseDown={showPreview ? undefined : (e) => {
-                e.stopPropagation(); // prevent canvas mousedown
+                e.stopPropagation();
                 setSelectedElement(el.id);
-                // Notify FloatingEditor
                 if (typeof onElementSelect === 'function' && containerRef.current) {
                   const wr = containerRef.current.getBoundingClientRect();
                   const sx = wr.width / CANVAS_W, sy = wr.height / CANVAS_H;
@@ -442,7 +461,6 @@ const Canvas = forwardRef(({
                     height: el.height * sy,
                   });
                 }
-                // Drag
                 const wr = containerRef.current.getBoundingClientRect();
                 const startMX = e.clientX, startMY = e.clientY;
                 const startEX = el.x, startEY = el.y;
@@ -478,7 +496,6 @@ const Canvas = forwardRef(({
                 ? <img src={dataUrl} alt="QR" draggable={false} style={{ width:'100%', height:'100%', display:'block', imageRendering:'pixelated', pointerEvents:'none' }} />
                 : <div style={{ width:'100%', height:'100%', background:'#f3f4f6', border:'1px solid #e5e7eb' }} />
               }
-              {/* Resize handles for QR */}
               {isSelected && !showPreview && ['nw','ne','sw','se'].map(corner => (
                 <div
                   key={corner}

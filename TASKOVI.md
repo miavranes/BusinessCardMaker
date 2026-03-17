@@ -45,12 +45,10 @@
 
 ## 6. QR Kod
 
-- [ ] Instalirati qrcode biblioteku
-- [ ] Kreirati QRCodeModal komponentu
-- [ ] Dodati formu za kontakt info (ime, telefon, email, website)
-- [ ] Implementirati generisanje QR koda
-- [ ] Dodati QR kod na Canvas kao sliku
-- [ ] Omogućiti resize QR koda
+- [x] Instalirati qrcode biblioteku
+- [x] Implementirati generisanje QR koda
+- [x] Dodati QR kod na Canvas kao sliku
+- [x] Omogućiti resize QR koda
 
 ## 7. Layering (Slojevi)
 
@@ -101,13 +99,10 @@
 
 ## 13. Izvoz (Export)
 
-- [ ] Dodati "Export" dugme
+- [x] Dodati "Export" dugme
 - [ ] Kreirati ExportModal sa opcijama formata
 - [ ] Implementirati izvoz u PNG (300 DPI)
-- [ ] Implementirati izvoz u JPG (300 DPI)
-- [ ] Instalirati jsPDF biblioteku
-- [ ] Implementirati izvoz u PDF
-- [ ] Dodati download funkcionalnost
+- [x] Dodati download funkcionalnost
 
 ## 14. Responsivnost
 
