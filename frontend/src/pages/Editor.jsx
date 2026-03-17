@@ -12,7 +12,7 @@ import '../css/Editor.css';
 
 const CANVAS_W = 580;
 const CANVAS_H = 330;
-const AUTOSAVE_INTERVAL = 30000; // 30 seconds
+const AUTOSAVE_INTERVAL = 30000;
 const STORAGE_KEY = 'bcard_editor_state';
 
 // ---------------------------------------------------------------------------
@@ -60,27 +60,16 @@ function useHistory(initial) {
 }
 
 // ---------------------------------------------------------------------------
-// localStorage helpers — strip non-serializable imgElement before saving
+// localStorage helpers
 // ---------------------------------------------------------------------------
 function serializeElements(elements) {
-  return elements.map(el => {
-    const { imgElement, ...rest } = el;
-    return rest;
-  });
+  return elements.map(el => { const { imgElement, ...rest } = el; return rest; });
 }
-
 function saveToStorage(key, data) {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-    return true;
-  } catch { return false; }
+  try { localStorage.setItem(key, JSON.stringify(data)); return true; } catch { return false; }
 }
-
 function loadFromStorage(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 
 export default function Editor() {
@@ -96,7 +85,6 @@ export default function Editor() {
   const canvasBackRef  = useRef(null);
   const editorRef      = useRef(null);
 
-  // ── Try to restore saved state for this template ──
   const storageKey = `${STORAGE_KEY}_${templateId || 'blank'}`;
   const saved = loadFromStorage(storageKey);
 
@@ -141,7 +129,7 @@ export default function Editor() {
   }, [silentSet]);
 
   // -------------------------------------------------------------------------
-  // userData — NOT part of undo history
+  // userData
   // -------------------------------------------------------------------------
   const [userData, setUserData] = useState(() => {
     if (saved?.userData) return saved.userData;
@@ -160,13 +148,12 @@ export default function Editor() {
   // -------------------------------------------------------------------------
   // Save state
   // -------------------------------------------------------------------------
-  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'unsaved' | 'saving'
+  const [saveStatus, setSaveStatus] = useState('saved');
 
   const saveNow = useCallback(() => {
     setSaveStatus('saving');
     const ok = saveToStorage(storageKey, {
-      sectionsFront,
-      sectionsBack,
+      sectionsFront, sectionsBack,
       elementsFront: serializeElements(elementsFront),
       elementsBack:  serializeElements(elementsBack),
       userData,
@@ -174,10 +161,7 @@ export default function Editor() {
     setSaveStatus(ok ? 'saved' : 'unsaved');
   }, [storageKey, sectionsFront, sectionsBack, elementsFront, elementsBack, userData]);
 
-  // Mark unsaved on any state change
   useEffect(() => { setSaveStatus('unsaved'); }, [state, userData]);
-
-  // Auto-save every 30s
   useEffect(() => {
     const id = setInterval(saveNow, AUTOSAVE_INTERVAL);
     return () => clearInterval(id);
@@ -216,6 +200,24 @@ export default function Editor() {
   const [dragPreview,       setDragPreview]       = useState(null);
   const [previewMode,       setPreviewMode]       = useState(false);
 
+  const clipboardRef = useRef(null);
+
+  // ── Refs that keep latest values accessible inside the stable keydown listener ──
+  const undoRef            = useRef(undo);
+  const redoRef            = useRef(redo);
+  const saveNowRef         = useRef(saveNow);
+  const selectedElementRef = useRef(selectedElement);
+  const allElementsRef     = useRef([]);
+  const activeCanvasRef    = useRef(activeCanvas);
+  const previewModeRef     = useRef(previewMode);
+
+  useEffect(() => { undoRef.current = undo; },                   [undo]);
+  useEffect(() => { redoRef.current = redo; },                   [redo]);
+  useEffect(() => { saveNowRef.current = saveNow; },             [saveNow]);
+  useEffect(() => { selectedElementRef.current = selectedElement; }, [selectedElement]);
+  useEffect(() => { activeCanvasRef.current = activeCanvas; },   [activeCanvas]);
+  useEffect(() => { previewModeRef.current = previewMode; },     [previewMode]);
+
   const handleSelectSection = (section, domRect) => {
     setSelectedSection(section ?? null);
     setSectionAnchorRect(domRect ?? null);
@@ -243,7 +245,7 @@ export default function Editor() {
 
   const updateElement = (id, updates) => patchElement(id, updates);
 
-  const deleteElement = (id) => {
+  const deleteElement = useCallback((id) => {
     push(s => ({
       ...s,
       elementsFront: s.elementsFront.filter(el => el.id !== id),
@@ -251,12 +253,28 @@ export default function Editor() {
     }));
     setSelectedElement(null);
     setElementAnchorRect(null);
-  };
+  }, [push]);
 
-  // ── Duplicate element ──
+  const deleteElementRef = useRef(deleteElement);
+  useEffect(() => { deleteElementRef.current = deleteElement; }, [deleteElement]);
+
+  const copyElement = useCallback((id) => {
+    const el = allElementsRef.current.find(e => e.id === id);
+    if (el) clipboardRef.current = el;
+  }, []);
+
+  const pasteElement = useCallback(() => {
+    const el = clipboardRef.current;
+    if (!el) return;
+    const clone = { ...el, id: `${el.type}-${Date.now()}`, x: (el.x ?? 0) + 16, y: (el.y ?? 0) + 16 };
+    if (activeCanvasRef.current === 'front') setElementsFront(prev => [...prev, clone]);
+    else                                     setElementsBack(  prev => [...prev, clone]);
+    setSelectedElement(clone.id);
+    setSelectedSection(null);
+  }, []);
+
   const duplicateElement = useCallback((id) => {
-    const allEls = [...elementsFront, ...elementsBack];
-    const el = allEls.find(e => e.id === id);
+    const el = allElementsRef.current.find(e => e.id === id);
     if (!el) return;
     const clone = { ...el, id: `${el.type}-${Date.now()}`, x: el.x + 16, y: el.y + 16 };
     const inFront = elementsFront.some(e => e.id === id);
@@ -312,6 +330,9 @@ export default function Editor() {
 
   const allElements = [...elementsFront, ...elementsBack];
 
+  // Keep allElementsRef always fresh
+  useEffect(() => { allElementsRef.current = allElements; });
+
   const handleDragElement = (element, coords, targetSide) => setDragPreview({ element, x: coords.x, y: coords.y, targetSide });
   const handleDragEnd = () => setDragPreview(null);
 
@@ -334,7 +355,6 @@ export default function Editor() {
     setElementAnchorRect({ left, right: left + widthPx, top, bottom: top + heightPx, width: widthPx, height: heightPx });
   }, [allElements, selectedElement, activeCanvas]);
 
-  // ── Background colors ──
   const [bgFront, setBgFront] = useState(saved?.bgFront ?? selectedTemplate?.bg     ?? '#ffffff');
   const [bgBack,  setBgBack]  = useState(saved?.bgBack  ?? selectedTemplate?.bgBack ?? '#ffffff');
 
@@ -349,7 +369,7 @@ export default function Editor() {
   };
 
   const handleAddTextSection = () => {
-    const fieldKey   = `custom_${Date.now()}`;
+    const fieldKey = `custom_${Date.now()}`;
     const newSection = {
       id: `text-added-${Date.now()}`,
       type: 'text', field: fieldKey, label: 'Added Text',
@@ -377,88 +397,103 @@ export default function Editor() {
   const handleAddQRCode = useCallback(() => {
     const allSections = [...sectionsFront, ...sectionsBack];
     const vcard = buildVCard(userData, allSections);
-    const size  = 90;
+    const size = 90;
     addElement({
-      id:           `qr-${Date.now()}`,
-      type:         'qr',
-      x:            (CANVAS_W - size) / 2,
-      y:            (CANVAS_H - size) / 2,
-      width:        size,
-      height:       size,
-      vcardString:  vcard,
-      qrFg:         '#000000',
-      qrBg:         '#ffffff',
-      opacity:      1,
+      id: `qr-${Date.now()}`, type: 'qr',
+      x: (CANVAS_W - size) / 2, y: (CANVAS_H - size) / 2,
+      width: size, height: size,
+      vcardString: vcard, qrFg: '#000000', qrBg: '#ffffff', opacity: 1,
     });
   }, [userData, sectionsFront, sectionsBack, addElement]);
 
-  // Auto-update vcardString on all QR elements whenever userData changes.
   const userDataKey = JSON.stringify(userData);
   useEffect(() => {
     const qrElements = [...elementsFront, ...elementsBack].filter(el => el.type === 'qr');
     if (!qrElements.length) return;
     const allSections = [...sectionsFront, ...sectionsBack];
     const vcard = buildVCard(userData, allSections);
-    qrElements.forEach(qrEl => {
-      silentUpdateElement(qrEl.id, { vcardString: vcard });
-    });
+    qrElements.forEach(qrEl => silentUpdateElement(qrEl.id, { vcardString: vcard }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userDataKey]);
 
   // -------------------------------------------------------------------------
-  // Keyboard shortcuts
+  // Keyboard shortcuts — single stable listener using refs
   // -------------------------------------------------------------------------
   useEffect(() => {
     const onKey = (e) => {
-      const ctrl = e.ctrlKey || e.metaKey;
-      const tag = document.activeElement?.tagName?.toLowerCase();
+      const ctrl    = e.ctrlKey || e.metaKey;
+      const tag     = document.activeElement?.tagName?.toLowerCase();
       const inInput = tag === 'input' || tag === 'textarea' || tag === 'select';
 
-      // Undo / Redo
-      if (ctrl && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
-      if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+      // ── Always active ──
 
-      // Save
-      if (ctrl && e.key === 's') { e.preventDefault(); saveNow(); return; }
-
-      // Preview toggle
-      if (e.key === 'Escape') { 
-        if (previewMode) { setPreviewMode(false); return; }
+      // Undo  Ctrl+Z
+      if (ctrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undoRef.current();
+        return;
+      }
+      // Redo  Ctrl+Y  or  Ctrl+Shift+Z
+      if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redoRef.current();
+        return;
+      }
+      // Save  Ctrl+S
+      if (ctrl && e.key === 's') {
+        e.preventDefault();
+        saveNowRef.current();
+        return;
+      }
+      // Escape
+      if (e.key === 'Escape') {
+        if (previewModeRef.current) { setPreviewMode(false); return; }
         setSelectedSection(null); setSectionAnchorRect(null);
         setSelectedElement(null); setElementAnchorRect(null);
         return;
       }
 
+      // ── Skip when typing in an input ──
       if (inInput) return;
 
-      // Delete selected element
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElement) {
+      const selId = selectedElementRef.current;
+
+      // Copy  Ctrl+C
+      if (ctrl && e.key === 'c' && selId) {
         e.preventDefault();
-        deleteElement(selectedElement);
+        copyElement(selId);
         return;
       }
-
-      // Duplicate — Ctrl+D
-      if (ctrl && e.key === 'd' && selectedElement) {
+      // Paste  Ctrl+V
+      if (ctrl && e.key === 'v') {
         e.preventDefault();
-        duplicateElement(selectedElement);
+        pasteElement();
         return;
       }
-
-      // Arrow keys — move selected element by 1px (10px with Shift)
-      if (selectedElement && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+      // Delete / Backspace
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selId) {
+          e.preventDefault();
+          deleteElementRef.current(selId);
+        }
+        return;
+      }
+      // Arrow keys
+      if (selId && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
         const dy = e.key === 'ArrowUp'   ? -step : e.key === 'ArrowDown'  ? step : 0;
-        const el = allElements.find(el => el.id === selectedElement);
-        if (el) updateElement(el.id, { x: el.x + dx, y: el.y + dy });
+        const el = allElementsRef.current.find(el => el.id === selId);
+        if (el) patchElement(el.id, { x: el.x + dx, y: el.y + dy });
         return;
       }
     };
+
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo, saveNow, selectedElement, selectedSection, allElements, duplicateElement, previewMode]);
+  // ← empty deps: listener is registered once, reads fresh values via refs
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleOutsideClick = e => {
@@ -480,7 +515,7 @@ export default function Editor() {
     : null;
 
   // -------------------------------------------------------------------------
-  // Download — html2canvas snapshot of entire .canvas-wrapper
+  // Download
   // -------------------------------------------------------------------------
   const downloadCanvasImages = useCallback(async () => {
     const prevSelectedSection = selectedSection;
@@ -533,7 +568,6 @@ export default function Editor() {
   return (
     <div className={`editor-container${previewMode ? ' preview-mode' : ''}`} ref={editorRef}>
 
-      {/* Preview mode overlay bar */}
       {previewMode && (
         <div className="preview-bar">
           <span className="preview-bar-label">Preview Mode</span>

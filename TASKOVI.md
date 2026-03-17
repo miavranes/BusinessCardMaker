@@ -83,19 +83,19 @@
 
 ## 11. Preview Mode
 
-- [ ] Dodati "Preview" dugme
-- [ ] Sakriti sve kontrole u preview mode-u
+- [x] Dodati "Preview" dugme
+- [x] Sakriti sve kontrole u preview mode-u
 - [ ] Reprodukovati sve animacije
-- [ ] Dodati "Exit Preview" dugme
-- [ ] Prikazati Canvas u realnoj veličini
+- [x] Dodati "Exit Preview" dugme
+- [x] Prikazati Canvas u realnoj veličini
 
 ## 12. Čuvanje (Save)
 
-- [ ] Implementirati čuvanje u localStorage
-- [ ] Dodati "Save" dugme
-- [ ] Dodati auto-save (svake 30 sekundi)
-- [ ] Učitati poslednji dizajn pri otvaranju
-- [ ] Dodati indikator "Saved" / "Unsaved"
+- [x] Implementirati čuvanje u localStorage
+- [x] Dodati "Save" dugme
+- [x] Dodati auto-save (svake 30 sekundi)
+- [x] Učitati poslednji dizajn pri otvaranju
+- [x] Dodati indikator "Saved" / "Unsaved"
 
 ## 13. Izvoz (Export)
 
