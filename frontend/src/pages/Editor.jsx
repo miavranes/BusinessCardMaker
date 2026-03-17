@@ -12,6 +12,8 @@ import '../css/Editor.css';
 
 const CANVAS_W = 580;
 const CANVAS_H = 330;
+const AUTOSAVE_INTERVAL = 30000; // 30 seconds
+const STORAGE_KEY = 'bcard_editor_state';
 
 // ---------------------------------------------------------------------------
 // useHistory — undo/redo stack
@@ -57,6 +59,30 @@ function useHistory(initial) {
   return { state: present, push, silentSet, undo, redo, canUndo: past.length > 0, canRedo: future.length > 0 };
 }
 
+// ---------------------------------------------------------------------------
+// localStorage helpers — strip non-serializable imgElement before saving
+// ---------------------------------------------------------------------------
+function serializeElements(elements) {
+  return elements.map(el => {
+    const { imgElement, ...rest } = el;
+    return rest;
+  });
+}
+
+function saveToStorage(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+    return true;
+  } catch { return false; }
+}
+
+function loadFromStorage(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 export default function Editor() {
   const { templateId } = useParams();
   const location = useLocation();
@@ -70,11 +96,15 @@ export default function Editor() {
   const canvasBackRef  = useRef(null);
   const editorRef      = useRef(null);
 
+  // ── Try to restore saved state for this template ──
+  const storageKey = `${STORAGE_KEY}_${templateId || 'blank'}`;
+  const saved = loadFromStorage(storageKey);
+
   const initialState = {
-    sectionsFront: (selectedTemplate?.sectionsFront ?? []).map(s => ({ ...s })),
-    sectionsBack:  (selectedTemplate?.sectionsBack  ?? []).map(s => ({ ...s })),
-    elementsFront: [],
-    elementsBack:  [],
+    sectionsFront: saved?.sectionsFront ?? (selectedTemplate?.sectionsFront ?? []).map(s => ({ ...s })),
+    sectionsBack:  saved?.sectionsBack  ?? (selectedTemplate?.sectionsBack  ?? []).map(s => ({ ...s })),
+    elementsFront: saved?.elementsFront ?? [],
+    elementsBack:  saved?.elementsBack  ?? [],
   };
 
   const { state, push, silentSet, undo, redo, canUndo, canRedo } = useHistory(initialState);
@@ -114,6 +144,7 @@ export default function Editor() {
   // userData — NOT part of undo history
   // -------------------------------------------------------------------------
   const [userData, setUserData] = useState(() => {
+    if (saved?.userData) return saved.userData;
     const base = { ...selectedTemplate?.defaultData, ...prefill };
     if (prefill.name) {
       const parts = prefill.name.trim().split(/\s+/);
@@ -125,6 +156,32 @@ export default function Editor() {
   });
 
   const updateUserData = (field, value) => setUserData(prev => ({ ...prev, [field]: value }));
+
+  // -------------------------------------------------------------------------
+  // Save state
+  // -------------------------------------------------------------------------
+  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'unsaved' | 'saving'
+
+  const saveNow = useCallback(() => {
+    setSaveStatus('saving');
+    const ok = saveToStorage(storageKey, {
+      sectionsFront,
+      sectionsBack,
+      elementsFront: serializeElements(elementsFront),
+      elementsBack:  serializeElements(elementsBack),
+      userData,
+    });
+    setSaveStatus(ok ? 'saved' : 'unsaved');
+  }, [storageKey, sectionsFront, sectionsBack, elementsFront, elementsBack, userData]);
+
+  // Mark unsaved on any state change
+  useEffect(() => { setSaveStatus('unsaved'); }, [state, userData]);
+
+  // Auto-save every 30s
+  useEffect(() => {
+    const id = setInterval(saveNow, AUTOSAVE_INTERVAL);
+    return () => clearInterval(id);
+  }, [saveNow]);
 
   // -------------------------------------------------------------------------
   // Section helpers
@@ -157,6 +214,7 @@ export default function Editor() {
   const [elementAnchorRect, setElementAnchorRect] = useState(null);
   const [activeCanvas,      setActiveCanvas]      = useState('front');
   const [dragPreview,       setDragPreview]       = useState(null);
+  const [previewMode,       setPreviewMode]       = useState(false);
 
   const handleSelectSection = (section, domRect) => {
     setSelectedSection(section ?? null);
@@ -194,6 +252,19 @@ export default function Editor() {
     setSelectedElement(null);
     setElementAnchorRect(null);
   };
+
+  // ── Duplicate element ──
+  const duplicateElement = useCallback((id) => {
+    const allEls = [...elementsFront, ...elementsBack];
+    const el = allEls.find(e => e.id === id);
+    if (!el) return;
+    const clone = { ...el, id: `${el.type}-${Date.now()}`, x: el.x + 16, y: el.y + 16 };
+    const inFront = elementsFront.some(e => e.id === id);
+    if (inFront) setElementsFront(prev => [...prev, clone]);
+    else         setElementsBack( prev => [...prev, clone]);
+    setSelectedElement(clone.id);
+    setSelectedSection(null);
+  }, [elementsFront, elementsBack]);
 
   const moveElementToBack = (element) => {
     push(s => ({
@@ -264,8 +335,8 @@ export default function Editor() {
   }, [allElements, selectedElement, activeCanvas]);
 
   // ── Background colors ──
-  const [bgFront, setBgFront] = useState(selectedTemplate?.bg     || '#ffffff');
-  const [bgBack,  setBgBack]  = useState(selectedTemplate?.bgBack || '#ffffff');
+  const [bgFront, setBgFront] = useState(saved?.bgFront ?? selectedTemplate?.bg     ?? '#ffffff');
+  const [bgBack,  setBgBack]  = useState(saved?.bgBack  ?? selectedTemplate?.bgBack ?? '#ffffff');
 
   const handleLogoUpload = file => updateUserData('logoUrl', URL.createObjectURL(file));
 
@@ -334,17 +405,60 @@ export default function Editor() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userDataKey]);
 
+  // -------------------------------------------------------------------------
   // Keyboard shortcuts
+  // -------------------------------------------------------------------------
   useEffect(() => {
     const onKey = (e) => {
       const ctrl = e.ctrlKey || e.metaKey;
-      if (!ctrl) return;
-      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-      if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const inInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+
+      // Undo / Redo
+      if (ctrl && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+      if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+
+      // Save
+      if (ctrl && e.key === 's') { e.preventDefault(); saveNow(); return; }
+
+      // Preview toggle
+      if (e.key === 'Escape') { 
+        if (previewMode) { setPreviewMode(false); return; }
+        setSelectedSection(null); setSectionAnchorRect(null);
+        setSelectedElement(null); setElementAnchorRect(null);
+        return;
+      }
+
+      if (inInput) return;
+
+      // Delete selected element
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElement) {
+        e.preventDefault();
+        deleteElement(selectedElement);
+        return;
+      }
+
+      // Duplicate — Ctrl+D
+      if (ctrl && e.key === 'd' && selectedElement) {
+        e.preventDefault();
+        duplicateElement(selectedElement);
+        return;
+      }
+
+      // Arrow keys — move selected element by 1px (10px with Shift)
+      if (selectedElement && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp'   ? -step : e.key === 'ArrowDown'  ? step : 0;
+        const el = allElements.find(el => el.id === selectedElement);
+        if (el) updateElement(el.id, { x: el.x + dx, y: el.y + dy });
+        return;
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo]);
+  }, [undo, redo, saveNow, selectedElement, selectedSection, allElements, duplicateElement, previewMode]);
 
   useEffect(() => {
     const handleOutsideClick = e => {
@@ -366,17 +480,14 @@ export default function Editor() {
     : null;
 
   // -------------------------------------------------------------------------
-  // Download — uses html2canvas to snapshot the entire .canvas-wrapper div
-  // which contains all layers: background, LayoutComponent, canvas, QR overlays
+  // Download — html2canvas snapshot of entire .canvas-wrapper
   // -------------------------------------------------------------------------
   const downloadCanvasImages = useCallback(async () => {
-    // Temporarily deselect so selection handles don't appear in export
     const prevSelectedSection = selectedSection;
     const prevSelectedElement = selectedElement;
     setSelectedSection(null);
     setSelectedElement(null);
 
-    // Wait one frame for React to re-render without selection UI
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 50)));
 
     const exportSide = async (canvasRef, name) => {
@@ -384,7 +495,6 @@ export default function Editor() {
       if (!canvasEl) return;
       const wrapper = canvasEl.closest('.canvas-wrapper');
       if (!wrapper) return;
-
       try {
         const { default: html2canvas } = await import('html2canvas');
         const snap = await html2canvas(wrapper, {
@@ -392,7 +502,6 @@ export default function Editor() {
           scale: CANVAS_W / wrapper.offsetWidth,
           useCORS: true,
           allowTaint: true,
-          // Hide selection overlays and resize handles during export
           ignoreElements: (el) =>
             el.classList?.contains('resize-handle') ||
             el.classList?.contains('resize-nw') ||
@@ -400,13 +509,10 @@ export default function Editor() {
             el.classList?.contains('resize-sw') ||
             el.classList?.contains('resize-se'),
         });
-
         const url = snap.toDataURL('image/png');
         const a = document.createElement('a');
-        a.href = url;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click();
         document.body.removeChild(a);
       } catch (err) {
         console.error('Export failed:', err);
@@ -417,50 +523,70 @@ export default function Editor() {
     await exportSide(canvasFrontRef, 'card-front.png');
     await exportSide(canvasBackRef,  'card-back.png');
 
-    // Restore selection state
     setSelectedSection(prevSelectedSection);
     setSelectedElement(prevSelectedElement);
   }, [selectedSection, selectedElement]);
 
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
   return (
-    <div className="editor-container" ref={editorRef}>
+    <div className={`editor-container${previewMode ? ' preview-mode' : ''}`} ref={editorRef}>
 
-      <Sidebar
-        elements={allElements}
-        selectedElement={selectedElement}
-        activeCanvas={activeCanvas}
-        onSetActiveCanvas={setActiveCanvas}
-        onAddElement={addElement}
-        onUpdateElement={updateElement}
-        onDeleteElement={deleteElement}
-        onAddTextSection={handleAddTextSection}
-        onAddQRCode={handleAddQRCode}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={undo}
-        onRedo={redo}
-        bgFront={bgFront}
-        bgBack={bgBack}
-        onChangeBgFront={setBgFront}
-        onChangeBgBack={setBgBack}
-        onDownloadImages={downloadCanvasImages}
-      />
+      {/* Preview mode overlay bar */}
+      {previewMode && (
+        <div className="preview-bar">
+          <span className="preview-bar-label">Preview Mode</span>
+          <button className="preview-bar-exit" onClick={() => setPreviewMode(false)}>
+            ✕ Exit Preview
+          </button>
+        </div>
+      )}
 
-      <div className={`canvas-area${(selectedSection || selectedElement) ? ' canvas-area--shift' : ''}`}>
+      {!previewMode && (
+        <Sidebar
+          elements={allElements}
+          selectedElement={selectedElement}
+          activeCanvas={activeCanvas}
+          onSetActiveCanvas={setActiveCanvas}
+          onAddElement={addElement}
+          onUpdateElement={updateElement}
+          onDeleteElement={deleteElement}
+          onAddTextSection={handleAddTextSection}
+          onAddQRCode={handleAddQRCode}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
+          bgFront={bgFront}
+          bgBack={bgBack}
+          onChangeBgFront={setBgFront}
+          onChangeBgBack={setBgBack}
+          onDownloadImages={downloadCanvasImages}
+          onSave={saveNow}
+          saveStatus={saveStatus}
+          onPreview={() => setPreviewMode(true)}
+          onDuplicateElement={duplicateElement}
+        />
+      )}
+
+      <div className={`canvas-area${(selectedSection || selectedElement) && !previewMode ? ' canvas-area--shift' : ''}`}>
         <div
           className={`canvas-side ${activeCanvas === 'front' ? 'canvas-side--active' : ''}`}
-          onClick={() => setActiveCanvas('front')}
+          onClick={() => !previewMode && setActiveCanvas('front')}
         >
-          <p className="canvas-label">
-            Front Side
-            {activeCanvas === 'front' && <span className="canvas-active-badge">● Active</span>}
-          </p>
+          {!previewMode && (
+            <p className="canvas-label">
+              Front Side
+              {activeCanvas === 'front' && <span className="canvas-active-badge">● Active</span>}
+            </p>
+          )}
           <Canvas
             key="front-canvas"
             ref={canvasFrontRef}
             elements={elementsFront}
-            selectedElement={selectedElement}
-            setSelectedElement={id => { setSelectedElement(id); setSelectedSection(null); setActiveCanvas('front'); }}
+            selectedElement={previewMode ? null : selectedElement}
+            setSelectedElement={id => { if (previewMode) return; setSelectedElement(id); setSelectedSection(null); setActiveCanvas('front'); }}
             onAddElement={addElementToFront}
             onUpdateElement={updateElement}
             onSilentUpdateElement={silentUpdateElement}
@@ -476,8 +602,8 @@ export default function Editor() {
             backgroundColor={bgFront}
             template={activeTemplate}
             isBack={false}
-            showPreview={false}
-            selectedSection={selectedSection}
+            showPreview={previewMode}
+            selectedSection={previewMode ? null : selectedSection}
             onSelectSection={handleSelectSection}
             userData={userData}
             sections={sectionsFront}
@@ -487,18 +613,20 @@ export default function Editor() {
 
         <div
           className={`canvas-side ${activeCanvas === 'back' ? 'canvas-side--active' : ''}`}
-          onClick={() => setActiveCanvas('back')}
+          onClick={() => !previewMode && setActiveCanvas('back')}
         >
-          <p className="canvas-label">
-            Back Side
-            {activeCanvas === 'back' && <span className="canvas-active-badge">● Active</span>}
-          </p>
+          {!previewMode && (
+            <p className="canvas-label">
+              Back Side
+              {activeCanvas === 'back' && <span className="canvas-active-badge">● Active</span>}
+            </p>
+          )}
           <Canvas
             key="back-canvas"
             ref={canvasBackRef}
             elements={elementsBack}
-            selectedElement={selectedElement}
-            setSelectedElement={id => { setSelectedElement(id); setSelectedSection(null); setActiveCanvas('back'); }}
+            selectedElement={previewMode ? null : selectedElement}
+            setSelectedElement={id => { if (previewMode) return; setSelectedElement(id); setSelectedSection(null); setActiveCanvas('back'); }}
             onAddElement={addElementToBack}
             onUpdateElement={updateElement}
             onSilentUpdateElement={silentUpdateElement}
@@ -514,8 +642,8 @@ export default function Editor() {
             backgroundColor={bgBack}
             template={activeTemplate}
             isBack={true}
-            showPreview={false}
-            selectedSection={selectedSection}
+            showPreview={previewMode}
+            selectedSection={previewMode ? null : selectedSection}
             onSelectSection={handleSelectSection}
             userData={userData}
             sections={sectionsBack}
@@ -524,7 +652,7 @@ export default function Editor() {
         </div>
       </div>
 
-      {(selectedSection || selectedElement) && (
+      {!previewMode && (selectedSection || selectedElement) && (
         <FloatingEditor
           selectedSection={selectedSection}
           selectedElement={allElements.find(el => el.id === selectedElement) || null}
@@ -543,6 +671,7 @@ export default function Editor() {
           onLogoUpload={handleLogoUpload}
           onDeleteSection={handleDeleteSection}
           onDeleteElement={deleteElement}
+          onDuplicateElement={duplicateElement}
         />
       )}
     </div>

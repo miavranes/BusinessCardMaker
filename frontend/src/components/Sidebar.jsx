@@ -18,6 +18,7 @@ import {
   Globe, Link, Share2, Download, Upload, Send,
   Flower2, Leaf, Feather, Moon, Sun, Cloud,
   CloudRain, Snowflake, Wind, Waves, Mountain, Trees,
+  Copy, Eye, Save,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -104,7 +105,6 @@ function svgFromButton(buttonEl) {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
 }
 
-// QR icon as inline SVG component (no external dep needed for the sidebar button)
 function QRIcon({ size = 15, color = 'currentColor' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -116,6 +116,20 @@ function QRIcon({ size = 15, color = 'currentColor' }) {
       <rect x="5" y="16" width="3" height="3" fill={color} stroke="none" />
       <path d="M14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" fill={color} stroke="none" />
     </svg>
+  );
+}
+
+function SaveIndicator({ status }) {
+  const map = {
+    saved:   { color: '#4ade80', label: '✓ Saved' },
+    unsaved: { color: '#f59e0b', label: '● Unsaved' },
+    saving:  { color: '#94a3b8', label: '… Saving' },
+  };
+  const { color, label } = map[status] || map.unsaved;
+  return (
+    <span style={{ fontSize: 10, color, fontWeight: 500, letterSpacing: '0.02em' }}>
+      {label}
+    </span>
   );
 }
 
@@ -137,14 +151,17 @@ export default function Sidebar({
   bgBack,
   onChangeBgFront,
   onChangeBgBack,
-  onDownloadImages, 
+  onDownloadImages,
+  onSave,
+  saveStatus,
+  onPreview,
+  onDuplicateElement,
 }) {
   const fileRef = useRef(null);
   const [activeCat, setActiveCat] = useState('shapes');
   const [iconColor, setIconColor] = useState('#8b5cf6');
   const [search, setSearch] = useState('');
   const [qrLoading, setQrLoading] = useState(false);
-
 
   const handleIconDragStart = (e) => {
     const dataUrl = svgFromButton(e.currentTarget);
@@ -195,11 +212,7 @@ export default function Sidebar({
   const handleAddQRCode = async () => {
     if (!onAddQRCode || qrLoading) return;
     setQrLoading(true);
-    try {
-      await onAddQRCode();
-    } finally {
-      setQrLoading(false);
-    }
+    try { await onAddQRCode(); } finally { setQrLoading(false); }
   };
 
   const allIcons = CATEGORIES.flatMap(c => c.icons);
@@ -211,8 +224,10 @@ export default function Sidebar({
     <aside className="sidebar">
       <div className="sb-header">
         <span className="sb-title">Sidebar</span>
+        <SaveIndicator status={saveStatus || 'saved'} />
       </div>
 
+      {/* ── Actions row: Undo/Redo + Save + Preview ── */}
       <div className="sb-undo-row">
         <button className={`sb-undo-btn ${!canUndo ? 'disabled' : ''}`} onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
           <Undo2 size={15} /> Undo
@@ -221,6 +236,28 @@ export default function Sidebar({
           <Redo2 size={15} /> Redo
         </button>
       </div>
+      <div className="sb-undo-row" style={{ marginTop: 4 }}>
+        <button className="sb-undo-btn" onClick={onSave} title="Save (Ctrl+S)" style={{ color: '#4ade80' }}>
+          <Save size={15} /> Save
+        </button>
+        <button className="sb-undo-btn" onClick={onPreview} title="Preview mode">
+          <Eye size={15} /> Preview
+        </button>
+      </div>
+
+      {/* ── Duplicate selected element ── */}
+      {selectedElement && (
+        <div style={{ padding: '4px 14px' }}>
+          <button
+            className="sb-upload-btn"
+            onClick={() => onDuplicateElement && onDuplicateElement(selectedElement)}
+            title="Duplicate selected element (Ctrl+D)"
+            style={{ width: '100%', justifyContent: 'center', gap: 6, background: 'rgba(99,102,241,0.15)', borderColor: 'rgba(99,102,241,0.4)' }}
+          >
+            <Copy size={14} /> Duplicate Element
+          </button>
+        </div>
+      )}
 
       <div className="sb-canvas-toggle">
         <button className={`sb-canvas-btn ${activeCanvas === 'front' ? 'active' : ''}`} onClick={() => onSetActiveCanvas('front')}>Front</button>
@@ -231,31 +268,16 @@ export default function Sidebar({
       <div className="sb-upload-section">
         <p className="sb-section-title" style={{ padding: '0 16px' }}>Background</p>
         <div className="sb-bg-row">
-          <label
-            className={`sb-bg-swatch-label ${activeCanvas === 'front' ? 'sb-bg-swatch-label--active' : ''}`}
-            title="Front background color"
-          >
+          <label className={`sb-bg-swatch-label ${activeCanvas === 'front' ? 'sb-bg-swatch-label--active' : ''}`} title="Front background color">
             <span className="sb-swatch-label">Front</span>
             <span className="sb-swatch-wrap" style={{ background: bgFront || '#ffffff' }}>
-              <input
-                type="color"
-                value={bgFront || '#ffffff'}
-                onChange={e => onChangeBgFront && onChangeBgFront(e.target.value)}
-              />
+              <input type="color" value={bgFront || '#ffffff'} onChange={e => onChangeBgFront && onChangeBgFront(e.target.value)} />
             </span>
           </label>
-
-          <label
-            className={`sb-bg-swatch-label ${activeCanvas === 'back' ? 'sb-bg-swatch-label--active' : ''}`}
-            title="Back background color"
-          >
+          <label className={`sb-bg-swatch-label ${activeCanvas === 'back' ? 'sb-bg-swatch-label--active' : ''}`} title="Back background color">
             <span className="sb-swatch-label">Back</span>
             <span className="sb-swatch-wrap" style={{ background: bgBack || '#ffffff' }}>
-              <input
-                type="color"
-                value={bgBack || '#ffffff'}
-                onChange={e => onChangeBgBack && onChangeBgBack(e.target.value)}
-              />
+              <input type="color" value={bgBack || '#ffffff'} onChange={e => onChangeBgBack && onChangeBgBack(e.target.value)} />
             </span>
           </label>
         </div>
@@ -266,23 +288,14 @@ export default function Sidebar({
         <svg className="sb-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5">
           <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
         </svg>
-        <input
-          className="sb-search"
-          placeholder="Search icons…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <input className="sb-search" placeholder="Search icons…" value={search} onChange={e => setSearch(e.target.value)} />
         {search && <button className="sb-search-clear" onClick={() => setSearch('')}>×</button>}
       </div>
 
       {!search && (
         <div className="sb-cats">
           {CATEGORIES.map(cat => (
-            <button
-              key={cat.id}
-              className={`sb-cat-btn ${activeCat === cat.id ? 'active' : ''}`}
-              onClick={() => setActiveCat(cat.id)}
-            >{cat.label}</button>
+            <button key={cat.id} className={`sb-cat-btn ${activeCat === cat.id ? 'active' : ''}`} onClick={() => setActiveCat(cat.id)}>{cat.label}</button>
           ))}
         </div>
       )}
@@ -296,14 +309,7 @@ export default function Sidebar({
 
       <div className="sb-icons-grid">
         {displayIcons.map(({ Icon, name }) => (
-          <button
-            key={name}
-            className="sb-icon-btn"
-            onClick={addIcon}
-            onDragStart={handleIconDragStart}
-            draggable
-            title={name}
-          >
+          <button key={name} className="sb-icon-btn" onClick={addIcon} onDragStart={handleIconDragStart} draggable title={name}>
             <Icon size={22} color={iconColor} strokeWidth={1.8} />
             <span>{name}</span>
           </button>
@@ -340,16 +346,9 @@ export default function Sidebar({
 
       <div className="sb-divider" style={{ margin: '8px 14px' }} />
 
-      {/* ── QR Code Section ── */}
       <div className="sb-upload-section">
         <p className="sb-section-title" style={{ padding: '0 16px' }}>QR Code</p>
-        <p style={{
-          fontSize: '10px',
-          color: 'rgba(255,255,255,0.4)',
-          padding: '0 16px 6px',
-          margin: 0,
-          lineHeight: 1.4,
-        }}>
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', padding: '0 16px 6px', margin: 0, lineHeight: 1.4 }}>
           Encodes your contact info as a vCard. Drag &amp; resize freely on the canvas.
         </p>
         <button
@@ -362,23 +361,19 @@ export default function Sidebar({
           <QRIcon size={15} />
           {qrLoading ? 'Generating…' : 'Add QR Code'}
         </button>
-        <p style={{
-          fontSize: '9px',
-          color: 'rgba(255,255,255,0.25)',
-          padding: '4px 16px 0',
-          margin: 0,
-          lineHeight: 1.4,
-        }}>
+        <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', padding: '4px 16px 0', margin: 0, lineHeight: 1.4 }}>
           Auto-updates when you change contact fields.
         </p>
       </div>
-      <button
-          className="sb-upload-btn"
-          onClick={onDownloadImages}
-        >
+
+      <div className="sb-divider" style={{ margin: '8px 14px' }} />
+
+      <div className="sb-upload-section">
+        <button className="sb-upload-btn" onClick={onDownloadImages} style={{ margin: '0 0 8px' }}>
           <Download size={15} />
           Download Images
         </button>
+      </div>
     </aside>
   );
 }
