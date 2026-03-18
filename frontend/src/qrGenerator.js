@@ -1,58 +1,93 @@
 /**
- * qrGenerator.js  —  src/utils/qrGenerator.js
+ * qrGenerator.js  —  src/utils/qrGenerator.js (ili src/qrGenerator.js)
  *
- * Builds a vCard 3.0 string from userData.
- * userData dolazi iz OnboardingModal forme sa poljima:
- *   name, title, company, email, phone, website, address
- * Editor splituje 'name' na firstName/lastName.
+ * Builds a vCard 3.0 string za QR kod.
+ *
+ * POPRAVKE:
+ * 1. Transliteracija dijakritika → ASCII (š→s, č→c, ć→c, đ→dj, ž→z)
+ *    UTF-8 karakteri troše 2-3 bajta svaki, ASCII 1 bajt.
+ *    qrcode biblioteka baca overflow grešku kada vCard pređe limit.
+ * 2. Uklonjen foldLine — RFC line wrapping kvari skeniranje na mobilnim.
+ * 3. Separator \n umjesto \r\n — bolja kompatibilnost sa iOS/Android skenerima.
  */
 
+const DIACRITIC_MAP = {
+  'š':'s','Š':'S','č':'c','Č':'C','ć':'c','Ć':'C',
+  'đ':'dj','Đ':'Dj','ž':'z','Ž':'Z',
+  'ä':'a','Ä':'A','ö':'o','Ö':'O','ü':'u','Ü':'U','ß':'ss',
+  'à':'a','á':'a','â':'a','ã':'a','å':'a',
+  'À':'A','Á':'A','Â':'A','Ã':'A','Å':'A',
+  'è':'e','é':'e','ê':'e','ë':'e',
+  'È':'E','É':'E','Ê':'E','Ë':'E',
+  'ì':'i','í':'i','î':'i','ï':'i',
+  'Ì':'I','Í':'I','Î':'I','Ï':'I',
+  'ò':'o','ó':'o','ô':'o','õ':'o',
+  'Ò':'O','Ó':'O','Ô':'O','Õ':'O',
+  'ù':'u','ú':'u','û':'u',
+  'Ù':'U','Ú':'U','Û':'U',
+  'ý':'y','Ý':'Y','ñ':'n','Ñ':'N','ç':'c','Ç':'C',
+};
+
+function transliterate(str) {
+  if (!str) return '';
+  return String(str).split('').map(c => DIACRITIC_MAP[c] ?? c).join('');
+}
+
+function escapeVCard(value) {
+  if (!value) return '';
+  return transliterate(String(value))
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g,  '\\;')
+    .replace(/,/g,  '\\,')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '');
+}
+
+function findValue(userData, sections, ...keywords) {
+  for (const kw of keywords) {
+    for (const key of Object.keys(userData)) {
+      if (key.toLowerCase().includes(kw) && userData[key]) {
+        return userData[key];
+      }
+    }
+  }
+  for (const kw of keywords) {
+    const sec = sections.find(s => s.field && s.field.toLowerCase().includes(kw));
+    if (sec && sec.field && userData[sec.field]) {
+      return userData[sec.field];
+    }
+  }
+  return '';
+}
+
 export function buildVCard(userData, sections = []) {
-  // Ime — Editor splituje 'name' na firstName/lastName
   const firstName = userData.firstName || '';
   const lastName  = userData.lastName  || '';
-  // Fallback: ako splitovanje nije uradjeno, uzmi direktno name polje
-  const fullName  = firstName || lastName
+  const fullName  = (firstName || lastName)
     ? `${firstName} ${lastName}`.trim()
-    : (userData.name || '');
+    : findValue(userData, sections, 'name', 'fullname', 'ime') || '';
 
-  // Sva ostala polja — čitaj direktno iz userData (forma ih šalje pod ovim imenima)
-  // Plus skenira sekcije kao backup za custom template field nazive
-  const find = (...keywords) => {
-    const sec = sections.find(s =>
-      s.field && keywords.some(kw => s.field.toLowerCase().includes(kw))
-    );
-    if (!sec) return '';
-    if (sec.field === 'name') return fullName;
-    return userData[sec.field] || '';
-  };
+  const phone   = findValue(userData, sections, 'phone', 'tel', 'mobile', 'cell', 'broj', 'mobitel');
+  const email   = findValue(userData, sections, 'email', 'mail', 'mejl');
+  const company = findValue(userData, sections, 'company', 'org', 'firm', 'business', 'kompan', 'firma');
+  const title   = findValue(userData, sections, 'title', 'job', 'position', 'role', 'pozicij', 'zvanje');
+  const website = findValue(userData, sections, 'website', 'url', 'web', 'site', 'link');
+  const address = findValue(userData, sections, 'address', 'addr', 'location', 'city', 'adres', 'grad');
 
-  const phone   = userData.phone    || userData.phoneNumber || userData.mobile || find('phone','mobile','tel','cell') || '';
-  const email   = userData.email    || find('email','mail') || '';
-  const company = userData.company  || userData.organization || find('company','org','business') || '';
-  const title   = userData.title    || userData.jobTitle    || find('title','job','position','role') || '';
-  const website = userData.website  || find('website','url','web') || '';
-  const address = userData.address  || find('address','location','city') || '';
-
-  // Splituj fullName za N polje
-  const parts = fullName.split(/\s+/);
-  const fn    = parts[0] || '';
-  const ln    = parts.slice(1).join(' ') || '';
-
-  const vcardFirstName = firstName || fn;
-  const vcardLastName  = lastName  || ln;
-
-  return [
+  const lines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
-    `N:${vcardLastName};${vcardFirstName};;;`,
-    `FN:${fullName}`,
-    company ? `ORG:${company}`           : null,
-    title   ? `TITLE:${title}`           : null,
-    phone   ? `TEL;TYPE=CELL:${phone}`   : null,
-    email   ? `EMAIL;TYPE=WORK:${email}` : null,
-    website ? `URL:${website}`           : null,
-    address ? `ADR;TYPE=WORK:;;${address};;;;` : null,
+    `N:${escapeVCard(lastName)};${escapeVCard(firstName)};;;`,
+    `FN:${escapeVCard(fullName)}`,
+    company ? `ORG:${escapeVCard(company)}`         : null,
+    title   ? `TITLE:${escapeVCard(title)}`         : null,
+    phone   ? `TEL;TYPE=CELL:${escapeVCard(phone)}` : null,
+    email   ? `EMAIL:${escapeVCard(email)}`         : null,
+    website ? `URL:${escapeVCard(website)}`          : null,
+    address ? `ADR;TYPE=WORK:;;${escapeVCard(address)};;;;` : null,
     'END:VCARD',
-  ].filter(Boolean).join('\r\n');
+  ].filter(Boolean);
+
+  // \n bez foldinga — ključno za mobilne skenere
+  return lines.join('\n') + '\n';
 }

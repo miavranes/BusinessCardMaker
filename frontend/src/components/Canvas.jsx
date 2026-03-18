@@ -65,16 +65,21 @@ const Canvas = forwardRef(({
   }, [ref]);
 
   // ── QR: generate data URLs whenever vcardString changes ──
+  // POPRAVKA: errorCorrectionLevel: 'L' umjesto 'M'
+  // Level L = najviše kapaciteta (~41% više od M), dovoljno za kontakt kartice
+  // margin: 1 umjesto 2 = još malo manje podataka, ali QR ostaje čitljiv
   const qrKey = elements.filter(e => e.type === 'qr').map(e => e.id + e.vcardString).join('|');
   useEffect(() => {
     const qrEls = elements.filter(el => el.type === 'qr' && el.vcardString);
     if (!qrEls.length) { setQrDataUrls({}); return; }
     qrEls.forEach(el => {
       QRCode.toDataURL(el.vcardString, {
-        width: 300, margin: 2, errorCorrectionLevel: 'M',
+        width: 512,
+        margin: 4,                    // ← quiet zone mora biti min 4 modula, iPhone kamera to zahtijeva
+        errorCorrectionLevel: 'L',    // ← KLJUČNA PROMJENA: 'M' → 'L'
         color: { dark: el.qrFg || '#000000', light: el.qrBg || '#ffffff' },
       }).then(url => setQrDataUrls(prev => ({ ...prev, [el.id]: url })))
-        .catch(console.error);
+        .catch(err => console.error('QR generation failed:', err));
     });
   }, [qrKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -98,7 +103,6 @@ const Canvas = forwardRef(({
     const canvas = ref?.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    // imageSmoothingEnabled = false globalno (za tekst/shapes), ali drawImage ga lokalno override-uje
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
@@ -188,9 +192,6 @@ const Canvas = forwardRef(({
     else if (el.shapeType === 'line') { ctx.beginPath(); ctx.strokeStyle=el.fill; ctx.lineWidth=el.height||2; ctx.moveTo(el.x,el.y); ctx.lineTo(el.x+el.width,el.y); ctx.stroke(); }
   }
 
-  // ✅ FIX: imageSmoothingEnabled = true za slike da ne budu pikselizirane/degradirane.
-  // ctx.save() / ctx.restore() oko ovog poziva (u draw loopu) automatski vraćaju
-  // imageSmoothingEnabled na false nakon što se slika nacrta.
   function drawImage(ctx, el) {
     if (!el.imgElement) return;
     ctx.imageSmoothingEnabled = true;
@@ -208,7 +209,6 @@ const Canvas = forwardRef(({
 
   function getBounds(el) {
     if (el.type === 'text') {
-      // Ako element ima eksplicitne dimenzije (duplirani elementi), koristi ih direktno
       if (el.width && el.height) {
         return { x: el.x, y: el.y, w: el.width, h: el.height };
       }
@@ -218,7 +218,6 @@ const Canvas = forwardRef(({
       const lines = (el.content || '').split('\n');
       const lh = el.fontSize*(el.lineHeight||1.2);
       let maxW = 0; lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
-      // Minimum 30px širine i visine da element uvijek bude klikabilan
       return { x: el.x, y: el.y, w: Math.max(maxW, 30), h: Math.max(lines.length * lh, 30) };
     }
     return { x: el.x, y: el.y, w: el.width||80, h: el.height||80 };
@@ -241,17 +240,13 @@ const Canvas = forwardRef(({
     });
   }, [onElementSelect]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Shared drag logic for any element (canvas or QR)
   function startElementDrag(e, el) {
     const canvasRect = ref.current.getBoundingClientRect();
     const startMX = e.clientX, startMY = e.clientY;
-    // Save original position so we can snap back if needed
     const origX = el.x, origY = el.y;
     let lx = origX, ly = origY;
-    // Track the last mouse position from mousemove (reliable)
     let lastCX = e.clientX, lastCY = e.clientY;
     let hasMoved = false;
-    // Track live whether cursor is over any canvas during drag
     let overCanvas = true;
 
     const onMove = (mv) => {
@@ -289,19 +284,15 @@ const Canvas = forwardRef(({
       if (typeof onDragEnd === 'function') onDragEnd();
 
       if (!hasMoved) {
-        // Pure click — no movement, keep original position
         onUpdateElement(el.id, { x: origX, y: origY });
         setDragging(null);
         return;
       }
 
-      // Use the overCanvas flag tracked during mousemove — more reliable than checking up.clientX
       if (!overCanvas) {
         if (typeof onDropElementOutside === 'function') {
-          // Caller wants to delete it
           onDropElementOutside(el.id);
         } else {
-          // No handler — snap back to original position
           onSilentUpdateElement(el.id, { x: origX, y: origY });
           onUpdateElement(el.id, { x: origX, y: origY });
         }
@@ -309,10 +300,8 @@ const Canvas = forwardRef(({
         return;
       }
 
-      // Dropped inside a canvas — commit new position
       onUpdateElement(el.id, { x: lx, y: ly });
 
-      // Check if dropped onto the OTHER canvas
       if (onMoveElementToOtherCanvas) {
         const sides = document.querySelectorAll('.canvas-side');
         let other = null;
@@ -347,7 +336,6 @@ const Canvas = forwardRef(({
     if (showPreview) return;
     const { x, y } = getMousePos(e);
 
-    // Check resize handles on selected element
     if (selectedElement) {
       const el = elements.find(el => el.id === selectedElement);
       if (el && el.type !== 'qr') {
@@ -445,7 +433,6 @@ const Canvas = forwardRef(({
 
     const onUp = () => {
       if (!hasMoved) {
-        // Pure click — keep position
         onUpdateSection(section.id, { x: origSX, y: origSY });
         sectionDragRef.current = null;
         window.removeEventListener('mousemove', onMove);
@@ -457,7 +444,6 @@ const Canvas = forwardRef(({
         if (typeof onDropSectionOutside === 'function') {
           onDropSectionOutside(section.id);
         } else {
-          // Snap back
           onSilentUpdateSection(section.id, { x: origSX, y: origSY });
           onUpdateSection(section.id, { x: origSX, y: origSY });
         }
@@ -640,7 +626,7 @@ const Canvas = forwardRef(({
               }}
             >
               {dataUrl
-                ? <img src={dataUrl} alt="QR" draggable={false} style={{ width:'100%', height:'100%', display:'block', imageRendering:'pixelated', pointerEvents:'none' }} />
+                ? <img src={dataUrl} alt="QR" draggable={false} style={{ width:'100%', height:'100%', display:'block', imageRendering:'auto', pointerEvents:'none' }} />
                 : <div style={{ width:'100%', height:'100%', background:'#f3f4f6', border:'1px solid #e5e7eb' }} />
               }
               {isSelected && !showPreview && ['nw','ne','sw','se'].map(corner => (
@@ -664,20 +650,13 @@ const Canvas = forwardRef(({
                 top:    `${(b.y / CANVAS_H) * 100}%`,
                 width:  `${(b.w / CANVAS_W) * 100}%`,
                 height: `${(b.h / CANVAS_H) * 100}%`,
-                zIndex: 8,
-                boxSizing: 'border-box',
-                pointerEvents: 'none',
+                zIndex: 8, boxSizing: 'border-box', pointerEvents: 'none',
                 border: '1.5px solid rgba(99,102,241,0.8)',
-                borderRadius: '3px',
-                background: 'rgba(99,102,241,0.08)',
+                borderRadius: '3px', background: 'rgba(99,102,241,0.08)',
               }}
             >
               {['nw','ne','sw','se'].map(corner => (
-                <div
-                  key={corner}
-                  onMouseDown={e => { e.stopPropagation(); handleElementResizeMouseDown(e, el, corner); }}
-                  style={{ ...resizeDot(corner), pointerEvents: 'all' }}
-                />
+                <div key={corner} onMouseDown={e => { e.stopPropagation(); handleElementResizeMouseDown(e, el, corner); }} style={{ ...resizeDot(corner), pointerEvents: 'all' }} />
               ))}
             </div>
           );
