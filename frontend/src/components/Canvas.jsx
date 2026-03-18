@@ -98,6 +98,7 @@ const Canvas = forwardRef(({
     const canvas = ref?.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    // imageSmoothingEnabled = false globalno (za tekst/shapes), ali drawImage ga lokalno override-uje
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
@@ -187,20 +188,38 @@ const Canvas = forwardRef(({
     else if (el.shapeType === 'line') { ctx.beginPath(); ctx.strokeStyle=el.fill; ctx.lineWidth=el.height||2; ctx.moveTo(el.x,el.y); ctx.lineTo(el.x+el.width,el.y); ctx.stroke(); }
   }
 
+  // ✅ FIX: imageSmoothingEnabled = true za slike da ne budu pikselizirane/degradirane.
+  // ctx.save() / ctx.restore() oko ovog poziva (u draw loopu) automatski vraćaju
+  // imageSmoothingEnabled na false nakon što se slika nacrta.
   function drawImage(ctx, el) {
     if (!el.imgElement) return;
-    if (el.color) { ctx.drawImage(el.imgElement,el.x,el.y,el.width,el.height); ctx.globalCompositeOperation='source-in'; ctx.fillStyle=el.color; ctx.fillRect(el.x,el.y,el.width,el.height); ctx.globalCompositeOperation='source-over'; }
-    else ctx.drawImage(el.imgElement,el.x,el.y,el.width,el.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    if (el.color) {
+      ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = el.color;
+      ctx.fillRect(el.x, el.y, el.width, el.height);
+      ctx.globalCompositeOperation = 'source-over';
+    } else {
+      ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
+    }
   }
 
   function getBounds(el) {
     if (el.type === 'text') {
+      // Ako element ima eksplicitne dimenzije (duplirani elementi), koristi ih direktno
+      if (el.width && el.height) {
+        return { x: el.x, y: el.y, w: el.width, h: el.height };
+      }
       const canvas = ref?.current; if (!canvas) return { x:0,y:0,w:0,h:0 };
       const ctx = canvas.getContext('2d');
       ctx.font = `${el.fontStyle||'normal'} ${el.fontWeight||'normal'} ${el.fontSize}px ${el.fontFamily}`;
-      const lines = el.content.split('\n'); const lh = el.fontSize*(el.lineHeight||1.2);
+      const lines = (el.content || '').split('\n');
+      const lh = el.fontSize*(el.lineHeight||1.2);
       let maxW = 0; lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
-      return { x: el.x, y: el.y, w: maxW, h: lines.length * lh };
+      // Minimum 30px širine i visine da element uvijek bude klikabilan
+      return { x: el.x, y: el.y, w: Math.max(maxW, 30), h: Math.max(lines.length * lh, 30) };
     }
     return { x: el.x, y: el.y, w: el.width||80, h: el.height||80 };
   }

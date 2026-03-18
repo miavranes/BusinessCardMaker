@@ -46,7 +46,12 @@ export default function FloatingEditor({
   const isImageEl = !editingSection && el?.type === 'image';
   const isShapeEl = !editingSection && el?.type === 'shape';
   const isQREl    = !editingSection && el?.type === 'qr';
-  const isIconEl  = isImageEl && (el?.id || '').startsWith('icon-');
+  // isIconEl: ikona iz sekcije (icon-xxx prefix) ILI element tagovan kao _sectionType='icon'
+  const isIconEl  = isImageEl && ((el?.id || '').startsWith('icon-') || el?._sectionType === 'icon');
+  // isLogoEl: duplirani logo element (tagovan _sectionType='logo')
+  const isLogoEl  = isImageEl && el?._sectionType === 'logo';
+  // _sectionField za text elemente koji su duplirani iz sekcije
+  const isNameFromSection = isTextEl && el?._sectionField === 'name';
 
   const canDuplicate = editingSection
     ? !!onDuplicateSection
@@ -58,7 +63,9 @@ export default function FloatingEditor({
     } else if (el && onDuplicateElement) {
       onDuplicateElement(el.id);
     }
-    onClose();
+    // Ne pozivamo onClose() — duplicateSection/duplicateElement postavljaju
+    // selectedElement na novi klon, a onClose() bi to obrisao (setSelectedElement(null))
+    // što rezultira da se FloatingEditor ne otvara bez draga na drugi canvas.
   };
 
   const getValue = (field) => userData[field] ?? '';
@@ -66,10 +73,11 @@ export default function FloatingEditor({
   const label = editingSection
     ? (selectedSection.label || selectedSection.id)
     : isQREl    ? 'QR Code'
+    : isLogoEl  ? 'Logo'
     : isIconEl  ? 'Icon'
     : isImageEl ? 'Image'
     : isShapeEl ? 'Shape'
-    : isTextEl  ? 'Text'
+    : isTextEl  ? (el?._sectionLabel || el?._sectionField || 'Text')
     : 'Element';
 
   const normalize = (v) => Math.max(0.05, Math.min(1, v));
@@ -147,6 +155,22 @@ export default function FloatingEditor({
     </>
   );
 
+  // ── Zajednički handler za upload slike direktno na canvas element ──
+  // Čita fajl kao base64 dataURL (permanentno, nema isteka kao blob URL),
+  // kreira novi Image objekat i ažurira element sa src + imgElement.
+  const handleImageElementUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target.result;
+      const img = new window.Image();
+      img.onload = () => onUpdateElement(el.id, { src: dataUrl, imgElement: img });
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="floating-editor" ref={panelRef} style={style}>
       <div className="fe-header">
@@ -180,10 +204,38 @@ export default function FloatingEditor({
           <>
             <div className="fe-group">
               <label className="fe-label">Content</label>
-              <textarea rows="3" value={el.content || ''}
-                onChange={e => onUpdateElement(el.id, { content: e.target.value })}
-                style={{ width:'100%', padding:'12px 14px', border:'2px solid #e2e8f0', borderRadius:'14px', fontSize:'14px', fontFamily:'inherit', resize:'none' }}
-              />
+              {isNameFromSection ? (
+                // Duplirani name element — isti dual input kao u sekciji
+                <div className="fe-dual-input">
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="First Name"
+                    value={userData?.firstName ?? ''}
+                    onChange={e => {
+                      if (onUpdateUserData) onUpdateUserData('firstName', e.target.value);
+                      // Ažuriramo i content elementa direktno
+                      const full = `${e.target.value} ${userData?.lastName ?? ''}`.trim();
+                      onUpdateElement(el.id, { content: full });
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Last Name"
+                    value={userData?.lastName ?? ''}
+                    onChange={e => {
+                      if (onUpdateUserData) onUpdateUserData('lastName', e.target.value);
+                      const full = `${userData?.firstName ?? ''} ${e.target.value}`.trim();
+                      onUpdateElement(el.id, { content: full });
+                    }}
+                  />
+                </div>
+              ) : (
+                <textarea rows="3" value={el.content || ''}
+                  onChange={e => onUpdateElement(el.id, { content: e.target.value })}
+                  style={{ width:'100%', padding:'12px 14px', border:'2px solid #e2e8f0', borderRadius:'14px', fontSize:'14px', fontFamily:'inherit', resize:'none' }}
+                />
+              )}
             </div>
             <Divider />
             <div className="fe-group">
@@ -241,8 +293,41 @@ export default function FloatingEditor({
           </>
         )}
 
-        {isImageEl && !isIconEl && (
+        {isLogoEl && (
           <>
+            {/* Isti panel kao logo sekcija, ali radi na canvas elementu (pikselske dimenzije) */}
+            <div className="fe-group">
+              <label className="fe-label">Replace Image</label>
+              <input
+                type="file"
+                id={`img-upload-${el.id}`}
+                hidden
+                accept="image/*"
+                onChange={handleImageElementUpload}
+              />
+              <label htmlFor={`img-upload-${el.id}`} className="fe-upload-btn">Choose File</label>
+            </div>
+            <Divider />
+            <SizeRow el={el} />
+            <Divider />
+            <OpacityRow value={el.opacity} onChange={v => onUpdateElement(el.id, { opacity: v })} />
+          </>
+        )}
+
+        {isImageEl && !isIconEl && !isLogoEl && (
+          <>
+            <div className="fe-group">
+              <label className="fe-label">Replace Image</label>
+              <input
+                type="file"
+                id={`img-upload-${el.id}`}
+                hidden
+                accept="image/*"
+                onChange={handleImageElementUpload}
+              />
+              <label htmlFor={`img-upload-${el.id}`} className="fe-upload-btn">Choose File</label>
+            </div>
+            <Divider />
             <SizeRow el={el} />
             <Divider />
             <OpacityRow value={el.opacity} onChange={v => onUpdateElement(el.id,{opacity:v})} />

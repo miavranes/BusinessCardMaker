@@ -15,6 +15,16 @@ const CANVAS_H = 330;
 const AUTOSAVE_INTERVAL = 30000;
 const STORAGE_KEY = 'bcard_editor_state';
 
+// SVG ikonice za poznata polja — koristi se pri dupliciranju sekcija koje imaju ikone
+const FIELD_ICON_SVGS = {
+  phone: (color) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="${color}"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>`,
+  email: (color) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`,
+  website: (color) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+};
+
 function useHistory(initial) {
   const [past,    setPast]    = useState([]);
   const [present, setPresent] = useState(initial);
@@ -83,11 +93,8 @@ export default function Editor() {
   const storageKey = `${STORAGE_KEY}_${templateId || 'blank'}`;
   const saved = isFresh ? null : loadFromStorage(storageKey);
 
-  // Clear storage when starting fresh
   useEffect(() => {
-    if (isFresh) {
-      localStorage.removeItem(storageKey);
-    }
+    if (isFresh) localStorage.removeItem(storageKey);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initialState = {
@@ -259,6 +266,23 @@ export default function Editor() {
     setSelectedSection(null);
   }, []);
 
+  // ── Helper: direktno postavi elementAnchorRect bez čekanja na useEffect ──
+  // useEffect za anchorRect se oslanja na allElements koji je stari u istom render cyklusu,
+  // pa FloatingEditor dobije anchorRect=null i ne prikazuje se.
+  // Ovaj helper ga postavlja odmah, isto kao što to radi notifySelect u Canvas.jsx.
+  const setElRect = useCallback((x, y, w, h, forFront) => {
+    const canvasEl = (forFront ? canvasFrontRef : canvasBackRef).current;
+    if (!canvasEl) return;
+    const parentRect = canvasEl.getBoundingClientRect();
+    const scale = parentRect.width / CANVAS_W;
+    const left   = parentRect.left + x * scale;
+    const top    = parentRect.top  + y * scale;
+    const wPx    = w * scale;
+    const hPx    = h * scale;
+    setElementAnchorRect({ left, right: left + wPx, top, bottom: top + hPx, width: wPx, height: hPx });
+    setSectionAnchorRect(null);
+  }, []);
+
   const duplicateElement = useCallback((id) => {
     const el = allElementsRef.current.find(e => e.id === id);
     if (!el) return;
@@ -268,44 +292,151 @@ export default function Editor() {
     else         setElementsBack( prev => [...prev, clone]);
     setSelectedElement(clone.id);
     setSelectedSection(null);
-  }, [elementsFront, elementsBack]);
+    setElRect(clone.x, clone.y, clone.width || 80, clone.height || 80, inFront);
+  }, [elementsFront, elementsBack, setElRect]);
 
   const duplicateSection = useCallback((section) => {
-  let content = '';
-  if (section.field === 'name') {
-    content = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-  } else {
-    content = userData[section.field] || '';
-  }
+    const isFront = sectionsFront.some(s => s.id === section.id);
+    const addToCanvas = isFront ? setElementsFront : setElementsBack;
+    const ts = Date.now();
 
-  const clone = {
-    id: `text-${Date.now()}`,
-    type: 'text',
-    content,
-    x: Math.round(section.x * CANVAS_W),
-    y: Math.round(section.y * CANVAS_H) + 20,
-    fontSize: section.fontSize || 12,
-    fontFamily: section.fontFamily || 'Arial, sans-serif',
-    fontWeight: section.fontWeight || 'normal',
-    fontStyle: section.fontStyle || 'normal',
-    color: section.color || '#000000',
-    textAlign: section.textAlign || 'left',
-    textDecoration: section.textDecoration || 'none',
-    textShadowBlur: section.textShadowBlur || 0,
-    textShadowColor: section.textShadowColor || '#000000',
-    textStrokeWidth: section.textStrokeWidth || 0,
-    textStrokeColor: section.textStrokeColor || '#000000',
-    lineHeight: section.lineHeight || 1.2,
-    opacity: section.opacity ?? 1,
-  };
+    // ── 1. LOGO → image element ──
+    if (section.type === 'logo') {
+      const w = Math.round(section.width  * CANVAS_W);
+      const h = Math.round(section.height * CANVAS_H);
+      const x = Math.round(section.x * CANVAS_W) + 16;
+      const y = Math.round(section.y * CANVAS_H) + 16;
 
-  const isFront = sectionsFront.some(s => s.id === section.id);
-  if (isFront) setElementsFront(prev => [...prev, clone]);
-  else         setElementsBack(  prev => [...prev, clone]);
+      let src = userData.logoUrl || section.src || null;
+      if (!src) {
+        const canvasEl = isFront ? canvasFrontRef.current : canvasBackRef.current;
+        const wrapper  = canvasEl?.closest('.canvas-wrapper');
+        const logoImg  = wrapper?.querySelector('.layout-component-wrapper img');
+        if (logoImg?.src) src = logoImg.src;
+      }
 
-  setSelectedElement(clone.id);
-  setSelectedSection(null);
-}, [userData, sectionsFront, sectionsBack]);
+      const cloneId = `image-${ts}`;
+      const clone = {
+        id: cloneId, type: 'image',
+        x, y, width: w, height: h,
+        src: src || null, imgElement: null,
+        opacity: section.opacity ?? 1,
+        _sectionType: 'logo',
+      };
+
+      if (src) {
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => silentUpdateElement(cloneId, { imgElement: img });
+        img.onerror = () => {
+          const fi = new window.Image();
+          fi.onload = () => silentUpdateElement(cloneId, { imgElement: fi });
+          fi.src = src;
+        };
+        img.src = src;
+      }
+
+      addToCanvas(prev => [...prev, clone]);
+      setSelectedElement(cloneId);
+      setSelectedSection(null);
+      setElRect(x, y, w, h, isFront);
+      return;
+    }
+
+    // ── 2. TEXT SA IKONICOM → ikonica (image) + tekst (text) ──
+    const iconSvgFn = FIELD_ICON_SVGS[section.field];
+    const iconColor = section.color || '#000000';
+    const iconSize  = section.fontSize || 12;
+    const sectionX  = Math.round(section.x * CANVAS_W);
+    const sectionY  = Math.round(section.y * CANVAS_H);
+
+    let content = '';
+    if (section.field === 'name') {
+      content = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+    } else {
+      content = userData[section.field] || '';
+    }
+
+    if (iconSvgFn) {
+      const svgString = iconSvgFn(iconColor);
+      const dataUrl   = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+      const iconId    = `icon-${ts}`;
+
+      const iconEl = {
+        id: iconId, type: 'image',
+        x: sectionX + 16, y: sectionY + 16,
+        width: iconSize, height: iconSize,
+        src: dataUrl, imgElement: null,
+        color: iconColor, opacity: section.opacity ?? 1,
+        _sectionType: 'icon', _sectionField: section.field,
+      };
+
+      const img = new window.Image();
+      img.onload = () => silentUpdateElement(iconId, { imgElement: img });
+      img.src = dataUrl;
+
+      const gap    = 6;
+      const textX  = sectionX + 16 + iconSize + gap;
+      const textY  = sectionY + 16;
+      const estW   = Math.max(60, content.length * (section.fontSize || 12) * 0.6);
+      const estH   = (section.fontSize || 12) * (section.lineHeight || 1.2);
+      const textEl = {
+        id: `text-${ts + 1}`, type: 'text', content,
+        x: textX, y: textY,
+        width: estW, height: estH,
+        fontSize:        section.fontSize        || 12,
+        fontFamily:      section.fontFamily      || 'Arial, sans-serif',
+        fontWeight:      section.fontWeight      || 'normal',
+        fontStyle:       section.fontStyle       || 'normal',
+        color:           section.color           || '#000000',
+        textAlign:       section.textAlign       || 'left',
+        textDecoration:  section.textDecoration  || 'none',
+        textShadowBlur:  section.textShadowBlur  || 0,
+        textShadowColor: section.textShadowColor || '#000000',
+        textStrokeWidth: section.textStrokeWidth || 0,
+        textStrokeColor: section.textStrokeColor || '#000000',
+        lineHeight:      section.lineHeight      || 1.2,
+        opacity:         section.opacity         ?? 1,
+        _sectionType: 'text', _sectionField: section.field, _sectionLabel: section.label,
+      };
+
+      addToCanvas(prev => [...prev, iconEl, textEl]);
+      setSelectedElement(textEl.id);
+      setSelectedSection(null);
+      setElRect(textX, textY, estW, estH, isFront);
+      return;
+    }
+
+    // ── 3. OBIČNI TEKST (bez ikonice) ──
+    const textX  = sectionX + 16;
+    const textY  = sectionY + 16;
+    const estW   = Math.max(60, content.length * (section.fontSize || 12) * 0.6);
+    const estH   = (section.fontSize || 12) * (section.lineHeight || 1.2);
+    const textClone = {
+      id: `text-${ts}`, type: 'text', content,
+      x: textX, y: textY,
+      width: estW, height: estH,
+      fontSize:        section.fontSize        || 12,
+      fontFamily:      section.fontFamily      || 'Arial, sans-serif',
+      fontWeight:      section.fontWeight      || 'normal',
+      fontStyle:       section.fontStyle       || 'normal',
+      color:           section.color           || '#000000',
+      textAlign:       section.textAlign       || 'left',
+      textDecoration:  section.textDecoration  || 'none',
+      textShadowBlur:  section.textShadowBlur  || 0,
+      textShadowColor: section.textShadowColor || '#000000',
+      textStrokeWidth: section.textStrokeWidth || 0,
+      textStrokeColor: section.textStrokeColor || '#000000',
+      lineHeight:      section.lineHeight      || 1.2,
+      opacity:         section.opacity         ?? 1,
+      _sectionType: 'text', _sectionField: section.field, _sectionLabel: section.label,
+    };
+
+    addToCanvas(prev => [...prev, textClone]);
+    setSelectedElement(textClone.id);
+    setSelectedSection(null);
+    setElRect(textX, textY, estW, estH, isFront);
+  }, [userData, sectionsFront, silentUpdateElement, setElRect]);
 
   const moveElementToBack = (element) => {
     push(s => ({
@@ -379,7 +510,14 @@ export default function Editor() {
   const [bgFront, setBgFront] = useState(saved?.bgFront ?? selectedTemplate?.bg     ?? '#ffffff');
   const [bgBack,  setBgBack]  = useState(saved?.bgBack  ?? selectedTemplate?.bgBack ?? '#ffffff');
 
-  const handleLogoUpload = file => updateUserData('logoUrl', URL.createObjectURL(file));
+  // ✅ FIX: Čuva logo kao base64 dataURL umjesto blob URL-a
+  // Blob URL-ovi su privremeni i mogu biti revocirani, što uzrokuje gubitak kvaliteta
+  // ili nemogućnost ponovnog učitavanja slike pri dupliciranju
+  const handleLogoUpload = file => {
+    const reader = new FileReader();
+    reader.onload = e => updateUserData('logoUrl', e.target.result);
+    reader.readAsDataURL(file);
+  };
 
   const handleDeleteSection = (sectionId) => {
     push(s => ({
