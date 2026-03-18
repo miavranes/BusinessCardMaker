@@ -15,7 +15,6 @@ const CANVAS_H = 330;
 const AUTOSAVE_INTERVAL = 30000;
 const STORAGE_KEY = 'bcard_editor_state';
 
-// SVG ikonice za poznata polja — koristi se pri dupliciranju sekcija koje imaju ikone
 const FIELD_ICON_SVGS = {
   phone: (color) =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="${color}"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>`,
@@ -69,11 +68,24 @@ function useHistory(initial) {
 function serializeElements(elements) {
   return elements.map(el => { const { imgElement, ...rest } = el; return rest; });
 }
+
+// ── FIX: save/load helpers koji rade pouzdano ──────────────────────────────
 function saveToStorage(key, data) {
-  try { localStorage.setItem(key, JSON.stringify(data)); return true; } catch { return false; }
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+    return true;
+  } catch {
+    return false;
+  }
 }
+
 function loadFromStorage(key) {
-  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 
 export default function Editor() {
@@ -90,12 +102,19 @@ export default function Editor() {
   const canvasBackRef  = useRef(null);
   const editorRef      = useRef(null);
 
+  // ── FIX: storageKey mora biti stabilan string, ne zavisi od render-a ──
   const storageKey = `${STORAGE_KEY}_${templateId || 'blank'}`;
-  const saved = isFresh ? null : loadFromStorage(storageKey);
 
-  useEffect(() => {
-    if (isFresh) localStorage.removeItem(storageKey);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── FIX: učitaj saved podatke jednom, na mount-u, uz provjeru isFresh ──
+  // Ranije: saved se računao svaki render, a isFresh provjera bila je u useEffect
+  // koji se izvršava NAKON prvog rendera — pa bi stari podaci bili učitani.
+  const saved = useRef((() => {
+    if (isFresh) {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+    return loadFromStorage(storageKey);
+  })()).current;
 
   const initialState = {
     sectionsFront: saved?.sectionsFront ?? (selectedTemplate?.sectionsFront ?? []).map(s => ({ ...s })),
@@ -138,33 +157,55 @@ export default function Editor() {
   }, [silentSet]);
 
   const [userData, setUserData] = useState(() => {
-    if (!isFresh && saved?.userData) return saved.userData;
-    const base = { ...selectedTemplate?.defaultData, ...prefill };
-    if (prefill.name) {
-      const parts = prefill.name.trim().split(/\s+/);
-      base.firstName = parts[0] || '';
-      base.lastName  = parts.slice(1).join(' ') || '';
+    // ── FIX: isFresh znači novi template — ignoriši sve što je saved ──
+    // Ranije: saved?.userData se koristio čak i kad je isFresh=true jer
+    // useEffect koji briše localStorage dolazi prekasno (nakon prvog rendera).
+    if (isFresh || !saved?.userData) {
+      const base = { ...selectedTemplate?.defaultData, ...prefill };
+      if (prefill.name) {
+        const parts = prefill.name.trim().split(/\s+/);
+        base.firstName = parts[0] || '';
+        base.lastName  = parts.slice(1).join(' ') || '';
+      }
+      delete base.name;
+      return base;
     }
-    delete base.name;
-    return base;
+    return saved.userData;
   });
 
   const updateUserData = (field, value) => setUserData(prev => ({ ...prev, [field]: value }));
 
   const [saveStatus, setSaveStatus] = useState('saved');
 
+  // ── FIX: koristimo ref za trenutne vrijednosti da saveNow ne mora biti
+  // u dependency listi useCallback-a — tako interval ostaje stabilan ──
+  const stateRef    = useRef(state);
+  const userDataRef = useRef(userData);
+  const bgFrontRef  = useRef(null);
+  const bgBackRef   = useRef(null);
+
+  useEffect(() => { stateRef.current = state; },    [state]);
+  useEffect(() => { userDataRef.current = userData; }, [userData]);
+
   const saveNow = useCallback(() => {
     setSaveStatus('saving');
+    const s = stateRef.current;
     const ok = saveToStorage(storageKey, {
-      sectionsFront, sectionsBack,
-      elementsFront: serializeElements(elementsFront),
-      elementsBack:  serializeElements(elementsBack),
-      userData,
+      sectionsFront: s.sectionsFront,
+      sectionsBack:  s.sectionsBack,
+      elementsFront: serializeElements(s.elementsFront),
+      elementsBack:  serializeElements(s.elementsBack),
+      userData:      userDataRef.current,
+      bgFront:       bgFrontRef.current,
+      bgBack:        bgBackRef.current,
     });
-    setSaveStatus(ok ? 'saved' : 'unsaved');
-  }, [storageKey, sectionsFront, sectionsBack, elementsFront, elementsBack, userData]);
+    setSaveStatus(ok ? 'saved' : 'error');
+  }, [storageKey]); // ← samo storageKey, stabilan string
 
+  // Označi kao unsaved kad se nešto promijeni
   useEffect(() => { setSaveStatus('unsaved'); }, [state, userData]);
+
+  // ── FIX: autosave interval sada ostaje stabilan jer saveNow ne mijenja referencu ──
   useEffect(() => {
     const id = setInterval(saveNow, AUTOSAVE_INTERVAL);
     return () => clearInterval(id);
@@ -266,10 +307,6 @@ export default function Editor() {
     setSelectedSection(null);
   }, []);
 
-  // ── Helper: direktno postavi elementAnchorRect bez čekanja na useEffect ──
-  // useEffect za anchorRect se oslanja na allElements koji je stari u istom render cyklusu,
-  // pa FloatingEditor dobije anchorRect=null i ne prikazuje se.
-  // Ovaj helper ga postavlja odmah, isto kao što to radi notifySelect u Canvas.jsx.
   const setElRect = useCallback((x, y, w, h, forFront) => {
     const canvasEl = (forFront ? canvasFrontRef : canvasBackRef).current;
     if (!canvasEl) return;
@@ -300,7 +337,6 @@ export default function Editor() {
     const addToCanvas = isFront ? setElementsFront : setElementsBack;
     const ts = Date.now();
 
-    // ── 1. LOGO → image element ──
     if (section.type === 'logo') {
       const w = Math.round(section.width  * CANVAS_W);
       const h = Math.round(section.height * CANVAS_H);
@@ -343,7 +379,6 @@ export default function Editor() {
       return;
     }
 
-    // ── 2. TEXT SA IKONICOM → ikonica (image) + tekst (text) ──
     const iconSvgFn = FIELD_ICON_SVGS[section.field];
     const iconColor = section.color || '#000000';
     const iconSize  = section.fontSize || 12;
@@ -382,21 +417,14 @@ export default function Editor() {
       const estH   = (section.fontSize || 12) * (section.lineHeight || 1.2);
       const textEl = {
         id: `text-${ts + 1}`, type: 'text', content,
-        x: textX, y: textY,
-        width: estW, height: estH,
-        fontSize:        section.fontSize        || 12,
-        fontFamily:      section.fontFamily      || 'Arial, sans-serif',
-        fontWeight:      section.fontWeight      || 'normal',
-        fontStyle:       section.fontStyle       || 'normal',
-        color:           section.color           || '#000000',
-        textAlign:       section.textAlign       || 'left',
-        textDecoration:  section.textDecoration  || 'none',
-        textShadowBlur:  section.textShadowBlur  || 0,
-        textShadowColor: section.textShadowColor || '#000000',
-        textStrokeWidth: section.textStrokeWidth || 0,
-        textStrokeColor: section.textStrokeColor || '#000000',
-        lineHeight:      section.lineHeight      || 1.2,
-        opacity:         section.opacity         ?? 1,
+        x: textX, y: textY, width: estW, height: estH,
+        fontSize: section.fontSize || 12, fontFamily: section.fontFamily || 'Arial, sans-serif',
+        fontWeight: section.fontWeight || 'normal', fontStyle: section.fontStyle || 'normal',
+        color: section.color || '#000000', textAlign: section.textAlign || 'left',
+        textDecoration: section.textDecoration || 'none',
+        textShadowBlur: section.textShadowBlur || 0, textShadowColor: section.textShadowColor || '#000000',
+        textStrokeWidth: section.textStrokeWidth || 0, textStrokeColor: section.textStrokeColor || '#000000',
+        lineHeight: section.lineHeight || 1.2, opacity: section.opacity ?? 1,
         _sectionType: 'text', _sectionField: section.field, _sectionLabel: section.label,
       };
 
@@ -407,28 +435,20 @@ export default function Editor() {
       return;
     }
 
-    // ── 3. OBIČNI TEKST (bez ikonice) ──
     const textX  = sectionX + 16;
     const textY  = sectionY + 16;
     const estW   = Math.max(60, content.length * (section.fontSize || 12) * 0.6);
     const estH   = (section.fontSize || 12) * (section.lineHeight || 1.2);
     const textClone = {
       id: `text-${ts}`, type: 'text', content,
-      x: textX, y: textY,
-      width: estW, height: estH,
-      fontSize:        section.fontSize        || 12,
-      fontFamily:      section.fontFamily      || 'Arial, sans-serif',
-      fontWeight:      section.fontWeight      || 'normal',
-      fontStyle:       section.fontStyle       || 'normal',
-      color:           section.color           || '#000000',
-      textAlign:       section.textAlign       || 'left',
-      textDecoration:  section.textDecoration  || 'none',
-      textShadowBlur:  section.textShadowBlur  || 0,
-      textShadowColor: section.textShadowColor || '#000000',
-      textStrokeWidth: section.textStrokeWidth || 0,
-      textStrokeColor: section.textStrokeColor || '#000000',
-      lineHeight:      section.lineHeight      || 1.2,
-      opacity:         section.opacity         ?? 1,
+      x: textX, y: textY, width: estW, height: estH,
+      fontSize: section.fontSize || 12, fontFamily: section.fontFamily || 'Arial, sans-serif',
+      fontWeight: section.fontWeight || 'normal', fontStyle: section.fontStyle || 'normal',
+      color: section.color || '#000000', textAlign: section.textAlign || 'left',
+      textDecoration: section.textDecoration || 'none',
+      textShadowBlur: section.textShadowBlur || 0, textShadowColor: section.textShadowColor || '#000000',
+      textStrokeWidth: section.textStrokeWidth || 0, textStrokeColor: section.textStrokeColor || '#000000',
+      lineHeight: section.lineHeight || 1.2, opacity: section.opacity ?? 1,
       _sectionType: 'text', _sectionField: section.field, _sectionLabel: section.label,
     };
 
@@ -507,12 +527,12 @@ export default function Editor() {
     setElementAnchorRect({ left, right: left + widthPx, top, bottom: top + heightPx, width: widthPx, height: heightPx });
   }, [allElements, selectedElement, activeCanvas]);
 
+  // ── FIX: bgFront/bgBack se čuvaju i u ref-u da saveNow ima pristup bez dependency liste ──
   const [bgFront, setBgFront] = useState(saved?.bgFront ?? selectedTemplate?.bg     ?? '#ffffff');
   const [bgBack,  setBgBack]  = useState(saved?.bgBack  ?? selectedTemplate?.bgBack ?? '#ffffff');
+  useEffect(() => { bgFrontRef.current = bgFront; }, [bgFront]);
+  useEffect(() => { bgBackRef.current  = bgBack;  }, [bgBack]);
 
-  // ✅ FIX: Čuva logo kao base64 dataURL umjesto blob URL-a
-  // Blob URL-ovi su privremeni i mogu biti revocirani, što uzrokuje gubitak kvaliteta
-  // ili nemogućnost ponovnog učitavanja slike pri dupliciranju
   const handleLogoUpload = file => {
     const reader = new FileReader();
     reader.onload = e => updateUserData('logoUrl', e.target.result);
@@ -553,7 +573,7 @@ export default function Editor() {
   const handleAddQRCode = useCallback(() => {
     const allSections = [...sectionsFront, ...sectionsBack];
     const vcard = buildVCard(userData, allSections);
-    const size = 90;
+    const size = 120; // ← povećano sa 90 na 120 za bolju čitljivost
     addElement({
       id: `qr-${Date.now()}`, type: 'qr',
       x: (CANVAS_W - size) / 2, y: (CANVAS_H - size) / 2,
