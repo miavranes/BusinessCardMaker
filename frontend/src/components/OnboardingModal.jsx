@@ -25,8 +25,7 @@ export default function OnboardingModal({ onClose }) {
 
   const handleStart = () => {
     if (!selectedTemplateId) return;
-    // Proslijedi podatke kroz location state
-    navigate(`/editor/${selectedTemplateId}`, { state: { prefill: formData } });
+    navigate(`/editor/${selectedTemplateId}`, { state: { prefill: formData, fresh: true } });
     onClose();
   };
 

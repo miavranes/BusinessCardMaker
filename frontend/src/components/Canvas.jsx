@@ -1,9 +1,22 @@
-import { useState, useRef, useEffect, forwardRef, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, forwardRef, useCallback } from 'react';
 import QRCode from 'qrcode';
 import '../css/Canvas.css';
 
 const CANVAS_W = 580;
 const CANVAS_H = 330;
+
+// Returns true if the point is inside any .canvas-side element
+function isInsideAnyCanvas(clientX, clientY) {
+  const sides = document.querySelectorAll('.canvas-side');
+  for (const s of sides) {
+    const r = s.getBoundingClientRect();
+    if (clientX >= r.left && clientX <= r.right &&
+        clientY >= r.top  && clientY <= r.bottom) {
+      return true;
+    }
+  }
+  return false;
+}
 
 const Canvas = forwardRef(({
   elements, selectedElement, setSelectedElement, onUpdateElement, onAddElement,
@@ -18,6 +31,8 @@ const Canvas = forwardRef(({
   onDragElement,
   onDragEnd,
   dragPreview,
+  onDropElementOutside,
+  onDropSectionOutside,
 }, ref) => {
   const containerRef = useRef(null);
   const [dragging, setDragging] = useState(null);
@@ -26,6 +41,9 @@ const Canvas = forwardRef(({
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [dragOverCanvas, setDragOverCanvas] = useState(false);
   const [qrDataUrls, setQrDataUrls] = useState({});
+
+  const onSilentUpdateElementRef = useRef(onSilentUpdateElement);
+  useEffect(() => { onSilentUpdateElementRef.current = onSilentUpdateElement; }, [onSilentUpdateElement]);
 
   useEffect(() => {
     const update = () => { if (containerRef.current) setContainerWidth(containerRef.current.offsetWidth); };
@@ -61,15 +79,19 @@ const Canvas = forwardRef(({
   }, [qrKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Reconstruct imgElement from src when missing ──
+  const imageReconstructKey = useMemo(
+    () => elements.map(e => e.id + (e.imgElement ? '1' : '0')).join(','),
+    [elements]
+  );
   useEffect(() => {
     const imageEls = elements.filter(el => el.type === 'image' && !el.imgElement && el.src);
     if (!imageEls.length) return;
     imageEls.forEach(el => {
       const img = new window.Image();
-      img.onload = () => onSilentUpdateElement(el.id, { imgElement: img });
+      img.onload = () => onSilentUpdateElementRef.current(el.id, { imgElement: img });
       img.src = el.src;
     });
-  }, [elements.map(e => e.id + (e.imgElement ? '1' : '0')).join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [imageReconstructKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Canvas draw loop ──
   useEffect(() => {
@@ -79,8 +101,6 @@ const Canvas = forwardRef(({
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-    // Only draw background on canvas when there is no LayoutComponent.
-    // When a template has a layoutComponent, the background is part of the HTML layer.
     if (!template?.layoutComponent) {
       ctx.fillStyle = backgroundColor || '#ffffff';
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -117,20 +137,6 @@ const Canvas = forwardRef(({
         ctx.strokeRect(el.x, el.y, el.width||60, el.height||60);
       }
       ctx.restore();
-
-      if (!showPreview && el.id === selectedElement && el.type !== 'qr') {
-        const b = getBounds(el);
-        ctx.save();
-        ctx.strokeStyle = 'rgba(99,102,241,0.8)'; ctx.lineWidth = 1.5;
-        ctx.fillStyle = 'rgba(99,102,241,0.08)';
-        ctx.fillRect(b.x-5, b.y-5, b.w+10, b.h+10);
-        ctx.strokeRect(b.x-5, b.y-5, b.w+10, b.h+10);
-        ctx.restore();
-        ctx.fillStyle = 'rgba(99,102,241,1)'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-        [[b.x-5,b.y-5],[b.x+b.w+5,b.y-5],[b.x-5,b.y+b.h+5],[b.x+b.w+5,b.y+b.h+5]].forEach(([cx,cy]) => {
-          ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        });
-      }
     });
 
     if (dragPreview) {
@@ -216,13 +222,116 @@ const Canvas = forwardRef(({
     });
   }, [onElementSelect]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Shared drag logic for any element (canvas or QR)
+  function startElementDrag(e, el) {
+    const canvasRect = ref.current.getBoundingClientRect();
+    const startMX = e.clientX, startMY = e.clientY;
+    // Save original position so we can snap back if needed
+    const origX = el.x, origY = el.y;
+    let lx = origX, ly = origY;
+    // Track the last mouse position from mousemove (reliable)
+    let lastCX = e.clientX, lastCY = e.clientY;
+    let hasMoved = false;
+    // Track live whether cursor is over any canvas during drag
+    let overCanvas = true;
+
+    const onMove = (mv) => {
+      hasMoved = true;
+      lastCX = mv.clientX;
+      lastCY = mv.clientY;
+      overCanvas = isInsideAnyCanvas(mv.clientX, mv.clientY);
+
+      lx = origX + (mv.clientX - startMX) / canvasRect.width  * CANVAS_W;
+      ly = origY + (mv.clientY - startMY) / canvasRect.height * CANVAS_H;
+      onSilentUpdateElement(el.id, { x: lx, y: ly });
+
+      if (typeof onDragElement === 'function') {
+        let targetSide = isBack ? 'back' : 'front', targetRect = canvasRect;
+        document.querySelectorAll('.canvas-side').forEach(side => {
+          const cr = side.getBoundingClientRect();
+          if (mv.clientX >= cr.left && mv.clientX <= cr.right && mv.clientY >= cr.top && mv.clientY <= cr.bottom) {
+            if (!side.contains(ref.current)) {
+              targetSide = isBack ? 'front' : 'back';
+              const oc = side.querySelector('canvas');
+              if (oc) targetRect = oc.getBoundingClientRect();
+            }
+          }
+        });
+        onDragElement(el, {
+          x: (mv.clientX - targetRect.left) * (CANVAS_W / targetRect.width),
+          y: (mv.clientY - targetRect.top)  * (CANVAS_H / targetRect.height),
+        }, targetSide);
+      }
+    };
+
+    const onUp = (up) => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      if (typeof onDragEnd === 'function') onDragEnd();
+
+      if (!hasMoved) {
+        // Pure click — no movement, keep original position
+        onUpdateElement(el.id, { x: origX, y: origY });
+        setDragging(null);
+        return;
+      }
+
+      // Use the overCanvas flag tracked during mousemove — more reliable than checking up.clientX
+      if (!overCanvas) {
+        if (typeof onDropElementOutside === 'function') {
+          // Caller wants to delete it
+          onDropElementOutside(el.id);
+        } else {
+          // No handler — snap back to original position
+          onSilentUpdateElement(el.id, { x: origX, y: origY });
+          onUpdateElement(el.id, { x: origX, y: origY });
+        }
+        setDragging(null);
+        return;
+      }
+
+      // Dropped inside a canvas — commit new position
+      onUpdateElement(el.id, { x: lx, y: ly });
+
+      // Check if dropped onto the OTHER canvas
+      if (onMoveElementToOtherCanvas) {
+        const sides = document.querySelectorAll('.canvas-side');
+        let other = null;
+        for (const s of sides) {
+          if (s.contains(ref.current)) {
+            for (const o of sides) { if (o !== s) { other = o; break; } }
+            break;
+          }
+        }
+        if (other) {
+          const or = other.getBoundingClientRect();
+          if (lastCX >= or.left && lastCX <= or.right && lastCY >= or.top && lastCY <= or.bottom) {
+            const oc = other.querySelector('canvas');
+            const ocRect = oc?.getBoundingClientRect();
+            const moved = ocRect
+              ? { ...el, x: (lastCX - ocRect.left) * (CANVAS_W / ocRect.width), y: (lastCY - ocRect.top) * (CANVAS_H / ocRect.height) }
+              : el;
+            onMoveElementToOtherCanvas(moved);
+          }
+        }
+      }
+
+      setDragging(null);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    if (typeof onDragElement === 'function') onDragElement(el, { x: origX, y: origY }, isBack ? 'back' : 'front');
+  }
+
   const handleMouseDown = (e) => {
     if (showPreview) return;
     const { x, y } = getMousePos(e);
 
+    // Check resize handles on selected element
     if (selectedElement) {
       const el = elements.find(el => el.id === selectedElement);
-      if (el) {
+      if (el && el.type !== 'qr') {
         const b = getBounds(el);
         const corners = [
           { name: 'nw', cx: b.x-5,     cy: b.y-5     },
@@ -231,7 +340,7 @@ const Canvas = forwardRef(({
           { name: 'se', cx: b.x+b.w+5, cy: b.y+b.h+5 },
         ];
         for (const c of corners) {
-          if (Math.hypot(x - c.cx, y - c.cy) <= 8) {
+          if (Math.hypot(x - c.cx, y - c.cy) <= 10) {
             setResizing({ id: el.id, corner: c.name });
             setResizeStart({ x: el.x, y: el.y, width: el.width||b.w, height: el.height||b.h, mouseX: x, mouseY: y });
             return;
@@ -248,50 +357,7 @@ const Canvas = forwardRef(({
         setSelectedElement(el.id);
         setDragging(el.id);
         notifySelect(el);
-
-        const canvasRect = ref.current.getBoundingClientRect();
-        const startMX = e.clientX, startMY = e.clientY;
-        const startEX = el.x, startEY = el.y;
-        let lx = startEX, ly = startEY;
-
-        const onMove = (mv) => {
-          lx = startEX + (mv.clientX - startMX) / canvasRect.width  * CANVAS_W;
-          ly = startEY + (mv.clientY - startMY) / canvasRect.height * CANVAS_H;
-          onSilentUpdateElement(el.id, { x: lx, y: ly });
-          if (typeof onDragElement === 'function') {
-            let targetSide = isBack ? 'back' : 'front', targetRect = canvasRect;
-            document.querySelectorAll('.canvas-side').forEach(side => {
-              const cr = side.getBoundingClientRect();
-              if (mv.clientX >= cr.left && mv.clientX <= cr.right && mv.clientY >= cr.top && mv.clientY <= cr.bottom) {
-                if (!side.contains(ref.current)) { targetSide = isBack ? 'front' : 'back'; const oc = side.querySelector('canvas'); if (oc) targetRect = oc.getBoundingClientRect(); }
-              }
-            });
-            onDragElement(el, { x: (mv.clientX - targetRect.left) * (CANVAS_W / targetRect.width), y: (mv.clientY - targetRect.top) * (CANVAS_H / targetRect.height) }, targetSide);
-          }
-        };
-        const onUp = (up) => {
-          window.removeEventListener('mousemove', onMove);
-          window.removeEventListener('mouseup', onUp);
-          if (typeof onDragEnd === 'function') onDragEnd();
-          onUpdateElement(el.id, { x: lx, y: ly });
-          if (onMoveElementToOtherCanvas) {
-            const sides = document.querySelectorAll('.canvas-side');
-            let other = null;
-            for (const s of sides) { if (s.contains(ref.current)) { for (const o of sides) { if (o !== s) { other = o; break; } } break; } }
-            if (other) {
-              const or = other.getBoundingClientRect();
-              if (up.clientX >= or.left && up.clientX <= or.right && up.clientY >= or.top && up.clientY <= or.bottom) {
-                const oc = other.querySelector('canvas');
-                const moved = oc ? { ...el, x: (up.clientX - oc.getBoundingClientRect().left) * (CANVAS_W / oc.getBoundingClientRect().width), y: (up.clientY - oc.getBoundingClientRect().top) * (CANVAS_H / oc.getBoundingClientRect().height) } : el;
-                onMoveElementToOtherCanvas(moved);
-              }
-            }
-          }
-          setDragging(null);
-        };
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-        if (typeof onDragElement === 'function') onDragElement(el, { x: startEX, y: startEY }, isBack ? 'back' : 'front');
+        startElementDrag(e, el);
         return;
       }
     }
@@ -342,40 +408,77 @@ const Canvas = forwardRef(({
     onSelectSection(section, e.currentTarget.getBoundingClientRect());
     const wr = containerRef.current.getBoundingClientRect();
     const startX = e.clientX, startY = e.clientY;
-    const sx0 = section.x, sy0 = section.y;
-    let lx = sx0, ly = sy0;
+    const origSX = section.x, origSY = section.y;
+    let lx = origSX, ly = origSY;
+    let hasMoved = false;
+    let overCanvas = true;
     sectionDragRef.current = { startX, startY, section, lastX: startX, lastY: startY };
+
     const onMove = (mv) => {
-      sectionDragRef.current.lastX = mv.clientX; sectionDragRef.current.lastY = mv.clientY;
-      lx = sx0 + (mv.clientX - startX) / wr.width;
-      ly = sy0 + (mv.clientY - startY) / wr.height;
+      hasMoved = true;
+      overCanvas = isInsideAnyCanvas(mv.clientX, mv.clientY);
+      sectionDragRef.current.lastX = mv.clientX;
+      sectionDragRef.current.lastY = mv.clientY;
+      lx = origSX + (mv.clientX - startX) / wr.width;
+      ly = origSY + (mv.clientY - startY) / wr.height;
       onSilentUpdateSection(section.id, { x: lx, y: ly });
     };
-    const onUp = (up) => {
+
+    const onUp = () => {
+      if (!hasMoved) {
+        // Pure click — keep position
+        onUpdateSection(section.id, { x: origSX, y: origSY });
+        sectionDragRef.current = null;
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        return;
+      }
+
+      if (!overCanvas) {
+        if (typeof onDropSectionOutside === 'function') {
+          onDropSectionOutside(section.id);
+        } else {
+          // Snap back
+          onSilentUpdateSection(section.id, { x: origSX, y: origSY });
+          onUpdateSection(section.id, { x: origSX, y: origSY });
+        }
+        sectionDragRef.current = null;
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        return;
+      }
+
       onUpdateSection(section.id, { x: lx, y: ly });
+
       if (onMoveSectionToOtherCanvas) {
+        const lastCX = sectionDragRef.current.lastX;
+        const lastCY = sectionDragRef.current.lastY;
         const sides = document.querySelectorAll('.canvas-side');
         let other = null;
-        for (const s of sides) { if (s.contains(ref.current)) { for (const o of sides) { if (o!==s) { other=o; break; } } break; } }
+        for (const s of sides) { if (s.contains(ref.current)) { for (const o of sides) { if (o !== s) { other = o; break; } } break; } }
         if (other) {
           const or = other.getBoundingClientRect();
-          const cx = up.clientX||sectionDragRef.current.lastX, cy = up.clientY||sectionDragRef.current.lastY;
-          if (cx>=or.left&&cx<=or.right&&cy>=or.top&&cy<=or.bottom) {
+          if (lastCX >= or.left && lastCX <= or.right && lastCY >= or.top && lastCY <= or.bottom) {
             const oc = other.querySelector('canvas');
-            const ns = oc ? { ...sectionDragRef.current.section, x:(cx-oc.getBoundingClientRect().left)/oc.getBoundingClientRect().width, y:(cy-oc.getBoundingClientRect().top)/oc.getBoundingClientRect().height } : sectionDragRef.current.section;
+            const ocRect = oc?.getBoundingClientRect();
+            const ns = ocRect
+              ? { ...sectionDragRef.current.section, x: (lastCX - ocRect.left) / ocRect.width, y: (lastCY - ocRect.top) / ocRect.height }
+              : sectionDragRef.current.section;
             onMoveSectionToOtherCanvas(ns);
           }
         }
       }
+
       sectionDragRef.current = null;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
+
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
 
-  const handleResizeMouseDown = (e, section, corner) => {
+  const handleSectionResizeMouseDown = (e, section, corner) => {
     e.stopPropagation();
     const wr = containerRef.current.getBoundingClientRect();
     const startX = e.clientX, startY = e.clientY;
@@ -390,12 +493,60 @@ const Canvas = forwardRef(({
       if (corner.includes('n')) { const cdy=Math.max(-sy,Math.min(sh-0.05,dy)); ny=sy+cdy; nh=sh-cdy; }
       last={x:nx,y:ny,width:nw,height:nh}; onSilentUpdateSection(section.id,last);
     };
-    const onUp = () => { onUpdateSection(section.id,last); window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp); };
+    const onUp = () => {
+      onUpdateSection(section.id,last);
+      window.removeEventListener('mousemove',onMove);
+      window.removeEventListener('mouseup',onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const handleElementResizeMouseDown = (e, el, corner) => {
+    e.stopPropagation();
+    const wr = containerRef.current.getBoundingClientRect();
+    const startX = e.clientX, startY = e.clientY;
+    const { x: ex, y: ey, width: ew, height: eh } = el;
+    const bw = ew || getBounds(el).w;
+    const bh = eh || getBounds(el).h;
+    const onMove = (mv) => {
+      const dx = (mv.clientX - startX) / wr.width  * CANVAS_W;
+      const dy = (mv.clientY - startY) / wr.height * CANVAS_H;
+      let nx=ex, ny=ey, nw=bw, nh=bh;
+      if (corner.includes('e')) nw=Math.max(20,bw+dx);
+      if (corner.includes('w')) { nw=Math.max(20,bw-dx); nx=ex+(bw-nw); }
+      if (corner.includes('s')) nh=Math.max(20,bh+dy);
+      if (corner.includes('n')) { nh=Math.max(20,bh-dy); ny=ey+(bh-nh); }
+      onSilentUpdateElement(el.id, { x:nx, y:ny, width:nw, height:nh });
+    };
+    const onUp = () => {
+      const cur = elements.find(e => e.id === el.id);
+      if (cur) onUpdateElement(cur.id, { x:cur.x, y:cur.y, width:cur.width, height:cur.height });
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
 
   const LayoutComponent = template?.layoutComponent;
+
+  const resizeDot = (corner) => ({
+    position: 'absolute', width: 10, height: 10,
+    background: '#6366f1', border: '2px solid white', borderRadius: '50%',
+    cursor: `${corner}-resize`, zIndex: 20, pointerEvents: 'all',
+    ...(corner==='nw' && { top: -5, left: -5 }),
+    ...(corner==='ne' && { top: -5, right: -5 }),
+    ...(corner==='sw' && { bottom: -5, left: -5 }),
+    ...(corner==='se' && { bottom: -5, right: -5 }),
+  });
+
+  const selectionOverlayStyle = (isSelected) => ({
+    border: isSelected ? '1.5px solid rgba(99,102,241,0.8)' : '1.5px solid transparent',
+    borderRadius: '3px',
+    background: isSelected ? 'rgba(99,102,241,0.08)' : 'transparent',
+    transition: 'border-color 0.15s, background 0.15s',
+  });
 
   return (
     <div ref={containerRef} className="canvas-container">
@@ -417,7 +568,6 @@ const Canvas = forwardRef(({
           }}
         />
 
-        {/* Background div — only when no LayoutComponent (which provides its own background) */}
         {!LayoutComponent && (
           <div style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', background: backgroundColor||'#ffffff', zIndex:0, pointerEvents:'none' }} />
         )}
@@ -453,43 +603,21 @@ const Canvas = forwardRef(({
                   const wr = containerRef.current.getBoundingClientRect();
                   const sx = wr.width / CANVAS_W, sy = wr.height / CANVAS_H;
                   onElementSelect(el.id, {
-                    left:   wr.left + el.x * sx,
-                    top:    wr.top  + el.y * sy,
-                    right:  wr.left + (el.x + el.width)  * sx,
-                    bottom: wr.top  + (el.y + el.height) * sy,
-                    width:  el.width  * sx,
-                    height: el.height * sy,
+                    left:   wr.left + el.x * sx, top:    wr.top  + el.y * sy,
+                    right:  wr.left + (el.x + el.width) * sx, bottom: wr.top + (el.y + el.height) * sy,
+                    width:  el.width * sx, height: el.height * sy,
                   });
                 }
-                const wr = containerRef.current.getBoundingClientRect();
-                const startMX = e.clientX, startMY = e.clientY;
-                const startEX = el.x, startEY = el.y;
-                let lx = startEX, ly = startEY;
-                const onMove = (mv) => {
-                  lx = startEX + (mv.clientX - startMX) / wr.width  * CANVAS_W;
-                  ly = startEY + (mv.clientY - startMY) / wr.height * CANVAS_H;
-                  onSilentUpdateElement(el.id, { x: lx, y: ly });
-                };
-                const onUp = () => {
-                  onUpdateElement(el.id, { x: lx, y: ly });
-                  window.removeEventListener('mousemove', onMove);
-                  window.removeEventListener('mouseup', onUp);
-                };
-                window.addEventListener('mousemove', onMove);
-                window.addEventListener('mouseup', onUp);
+                startElementDrag(e, el);
               }}
               style={{
                 position: 'absolute',
-                left:    `${el.x * scaleX}%`,
-                top:     `${el.y * scaleY}%`,
-                width:   `${el.width  * scaleX}%`,
-                height:  `${el.height * scaleY}%`,
-                zIndex:  5,
-                opacity: el.opacity ?? 1,
-                cursor:  showPreview ? 'default' : 'grab',
+                left: `${el.x * scaleX}%`, top: `${el.y * scaleY}%`,
+                width: `${el.width * scaleX}%`, height: `${el.height * scaleY}%`,
+                zIndex: 5, opacity: el.opacity ?? 1,
+                cursor: showPreview ? 'default' : 'grab',
                 boxSizing: 'border-box',
-                outline: isSelected && !showPreview ? '2px solid rgba(99,102,241,0.8)' : 'none',
-                outlineOffset: '2px',
+                ...selectionOverlayStyle(isSelected && !showPreview),
               }}
             >
               {dataUrl
@@ -497,39 +625,39 @@ const Canvas = forwardRef(({
                 : <div style={{ width:'100%', height:'100%', background:'#f3f4f6', border:'1px solid #e5e7eb' }} />
               }
               {isSelected && !showPreview && ['nw','ne','sw','se'].map(corner => (
+                <div key={corner} onMouseDown={e => { e.stopPropagation(); handleElementResizeMouseDown(e, el, corner); }} style={resizeDot(corner)} />
+              ))}
+            </div>
+          );
+        })}
+
+        {/* ── HTML selection overlays for non-QR canvas elements ── */}
+        {!showPreview && elements.filter(el => el.type !== 'qr').map(el => {
+          const isSelected = el.id === selectedElement;
+          if (!isSelected) return null;
+          const b = getBounds(el);
+          return (
+            <div
+              key={`overlay-${el.id}`}
+              style={{
+                position: 'absolute',
+                left:   `${(b.x / CANVAS_W) * 100}%`,
+                top:    `${(b.y / CANVAS_H) * 100}%`,
+                width:  `${(b.w / CANVAS_W) * 100}%`,
+                height: `${(b.h / CANVAS_H) * 100}%`,
+                zIndex: 8,
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+                border: '1.5px solid rgba(99,102,241,0.8)',
+                borderRadius: '3px',
+                background: 'rgba(99,102,241,0.08)',
+              }}
+            >
+              {['nw','ne','sw','se'].map(corner => (
                 <div
                   key={corner}
-                  onMouseDown={e => {
-                    e.stopPropagation();
-                    const wr = containerRef.current.getBoundingClientRect();
-                    const startX = e.clientX, startY = e.clientY;
-                    const { x: ex, y: ey, width: ew, height: eh } = el;
-                    const onMove = (mv) => {
-                      const dx = (mv.clientX - startX) / wr.width  * CANVAS_W;
-                      const dy = (mv.clientY - startY) / wr.height * CANVAS_H;
-                      let nx=ex, ny=ey, nw=ew, nh=eh;
-                      if (corner.includes('e')) nw=Math.max(20,ew+dx);
-                      if (corner.includes('w')) { nw=Math.max(20,ew-dx); nx=ex+(ew-nw); }
-                      if (corner.includes('s')) nh=Math.max(20,eh+dy);
-                      if (corner.includes('n')) { nh=Math.max(20,eh-dy); ny=ey+(eh-nh); }
-                      onSilentUpdateElement(el.id, { x:nx, y:ny, width:nw, height:nh });
-                    };
-                    const onUp = () => {
-                      const cur = elements.find(e => e.id === el.id);
-                      if (cur) onUpdateElement(cur.id, { x:cur.x, y:cur.y, width:cur.width, height:cur.height });
-                      window.removeEventListener('mousemove', onMove);
-                      window.removeEventListener('mouseup', onUp);
-                    };
-                    window.addEventListener('mousemove', onMove);
-                    window.addEventListener('mouseup', onUp);
-                  }}
-                  style={{
-                    position:'absolute', width:10, height:10,
-                    background:'#6366f1', border:'2px solid white', borderRadius:'50%',
-                    cursor:`${corner}-resize`, zIndex:20, pointerEvents:'all',
-                    ...(corner==='nw'&&{top:-5,left:-5}), ...(corner==='ne'&&{top:-5,right:-5}),
-                    ...(corner==='sw'&&{bottom:-5,left:-5}), ...(corner==='se'&&{bottom:-5,right:-5}),
-                  }}
+                  onMouseDown={e => { e.stopPropagation(); handleElementResizeMouseDown(e, el, corner); }}
+                  style={{ ...resizeDot(corner), pointerEvents: 'all' }}
                 />
               ))}
             </div>
@@ -545,21 +673,13 @@ const Canvas = forwardRef(({
                 position:'absolute', left:`${section.x*100}%`, top:`${section.y*100}%`,
                 width:`${section.width*100}%`, height:`${section.height*100}%`,
                 zIndex:10, cursor:'grab', boxSizing:'border-box',
-                border: isSelected ? '1.5px solid rgba(99,102,241,0.8)' : '1.5px solid transparent',
-                borderRadius:'3px', background: isSelected ? 'rgba(99,102,241,0.08)' : 'transparent',
-                transition:'border-color 0.15s, background 0.15s',
+                ...selectionOverlayStyle(isSelected),
               }}
             >
               {isSelected && ['nw','ne','sw','se'].map(corner => (
-                <div key={corner} onMouseDown={e => handleResizeMouseDown(e, section, corner)}
+                <div key={corner} onMouseDown={e => handleSectionResizeMouseDown(e, section, corner)}
                   className={`resize-handle resize-${corner}`}
-                  style={{
-                    position:'absolute', width:10, height:10,
-                    background:'#6366f1', border:'2px solid white', borderRadius:'50%',
-                    cursor:`${corner}-resize`, zIndex:20,
-                    ...(corner==='nw'&&{top:-5,left:-5}), ...(corner==='ne'&&{top:-5,right:-5}),
-                    ...(corner==='sw'&&{bottom:-5,left:-5}), ...(corner==='se'&&{bottom:-5,right:-5}),
-                  }}
+                  style={resizeDot(corner)}
                 />
               ))}
             </div>

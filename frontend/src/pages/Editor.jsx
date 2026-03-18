@@ -15,9 +15,6 @@ const CANVAS_H = 330;
 const AUTOSAVE_INTERVAL = 30000;
 const STORAGE_KEY = 'bcard_editor_state';
 
-// ---------------------------------------------------------------------------
-// useHistory — undo/redo stack
-// ---------------------------------------------------------------------------
 function useHistory(initial) {
   const [past,    setPast]    = useState([]);
   const [present, setPresent] = useState(initial);
@@ -59,9 +56,6 @@ function useHistory(initial) {
   return { state: present, push, silentSet, undo, redo, canUndo: past.length > 0, canRedo: future.length > 0 };
 }
 
-// ---------------------------------------------------------------------------
-// localStorage helpers
-// ---------------------------------------------------------------------------
 function serializeElements(elements) {
   return elements.map(el => { const { imgElement, ...rest } = el; return rest; });
 }
@@ -76,6 +70,7 @@ export default function Editor() {
   const { templateId } = useParams();
   const location = useLocation();
   const prefill = location.state?.prefill ?? {};
+  const isFresh = location.state?.fresh === true;
 
   const selectedTemplate = templateId
     ? templates.find(t => t.id === Number(templateId))
@@ -86,7 +81,14 @@ export default function Editor() {
   const editorRef      = useRef(null);
 
   const storageKey = `${STORAGE_KEY}_${templateId || 'blank'}`;
-  const saved = loadFromStorage(storageKey);
+  const saved = isFresh ? null : loadFromStorage(storageKey);
+
+  // Clear storage when starting fresh
+  useEffect(() => {
+    if (isFresh) {
+      localStorage.removeItem(storageKey);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initialState = {
     sectionsFront: saved?.sectionsFront ?? (selectedTemplate?.sectionsFront ?? []).map(s => ({ ...s })),
@@ -128,11 +130,8 @@ export default function Editor() {
     setSelectedSection(prev => prev?.id === sectionId ? { ...prev, ...updates } : prev);
   }, [silentSet]);
 
-  // -------------------------------------------------------------------------
-  // userData
-  // -------------------------------------------------------------------------
   const [userData, setUserData] = useState(() => {
-    if (saved?.userData) return saved.userData;
+    if (!isFresh && saved?.userData) return saved.userData;
     const base = { ...selectedTemplate?.defaultData, ...prefill };
     if (prefill.name) {
       const parts = prefill.name.trim().split(/\s+/);
@@ -145,9 +144,6 @@ export default function Editor() {
 
   const updateUserData = (field, value) => setUserData(prev => ({ ...prev, [field]: value }));
 
-  // -------------------------------------------------------------------------
-  // Save state
-  // -------------------------------------------------------------------------
   const [saveStatus, setSaveStatus] = useState('saved');
 
   const saveNow = useCallback(() => {
@@ -167,9 +163,6 @@ export default function Editor() {
     return () => clearInterval(id);
   }, [saveNow]);
 
-  // -------------------------------------------------------------------------
-  // Section helpers
-  // -------------------------------------------------------------------------
   const updateSection = (sectionId, updates) => {
     const isFront = sectionsFront.some(s => s.id === sectionId);
     push(s => {
@@ -189,9 +182,6 @@ export default function Editor() {
     );
   };
 
-  // -------------------------------------------------------------------------
-  // Selection state
-  // -------------------------------------------------------------------------
   const [selectedSection,   setSelectedSection]   = useState(null);
   const [sectionAnchorRect, setSectionAnchorRect] = useState(null);
   const [selectedElement,   setSelectedElement]   = useState(null);
@@ -202,7 +192,6 @@ export default function Editor() {
 
   const clipboardRef = useRef(null);
 
-  // ── Refs that keep latest values accessible inside the stable keydown listener ──
   const undoRef            = useRef(undo);
   const redoRef            = useRef(redo);
   const saveNowRef         = useRef(saveNow);
@@ -211,12 +200,12 @@ export default function Editor() {
   const activeCanvasRef    = useRef(activeCanvas);
   const previewModeRef     = useRef(previewMode);
 
-  useEffect(() => { undoRef.current = undo; },                   [undo]);
-  useEffect(() => { redoRef.current = redo; },                   [redo]);
-  useEffect(() => { saveNowRef.current = saveNow; },             [saveNow]);
-  useEffect(() => { selectedElementRef.current = selectedElement; }, [selectedElement]);
-  useEffect(() => { activeCanvasRef.current = activeCanvas; },   [activeCanvas]);
-  useEffect(() => { previewModeRef.current = previewMode; },     [previewMode]);
+  useEffect(() => { undoRef.current = undo; },                        [undo]);
+  useEffect(() => { redoRef.current = redo; },                        [redo]);
+  useEffect(() => { saveNowRef.current = saveNow; },                  [saveNow]);
+  useEffect(() => { selectedElementRef.current = selectedElement; },  [selectedElement]);
+  useEffect(() => { activeCanvasRef.current = activeCanvas; },        [activeCanvas]);
+  useEffect(() => { previewModeRef.current = previewMode; },          [previewMode]);
 
   const handleSelectSection = (section, domRect) => {
     setSelectedSection(section ?? null);
@@ -230,9 +219,6 @@ export default function Editor() {
     if (id) { setSelectedSection(null); setSectionAnchorRect(null); }
   };
 
-  // -------------------------------------------------------------------------
-  // Element helpers
-  // -------------------------------------------------------------------------
   const addElement = (el) => {
     if (activeCanvas === 'front') setElementsFront(prev => [...prev, el]);
     else                          setElementsBack(  prev => [...prev, el]);
@@ -284,6 +270,43 @@ export default function Editor() {
     setSelectedSection(null);
   }, [elementsFront, elementsBack]);
 
+  const duplicateSection = useCallback((section) => {
+  let content = '';
+  if (section.field === 'name') {
+    content = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+  } else {
+    content = userData[section.field] || '';
+  }
+
+  const clone = {
+    id: `text-${Date.now()}`,
+    type: 'text',
+    content,
+    x: Math.round(section.x * CANVAS_W),
+    y: Math.round(section.y * CANVAS_H) + 20,
+    fontSize: section.fontSize || 12,
+    fontFamily: section.fontFamily || 'Arial, sans-serif',
+    fontWeight: section.fontWeight || 'normal',
+    fontStyle: section.fontStyle || 'normal',
+    color: section.color || '#000000',
+    textAlign: section.textAlign || 'left',
+    textDecoration: section.textDecoration || 'none',
+    textShadowBlur: section.textShadowBlur || 0,
+    textShadowColor: section.textShadowColor || '#000000',
+    textStrokeWidth: section.textStrokeWidth || 0,
+    textStrokeColor: section.textStrokeColor || '#000000',
+    lineHeight: section.lineHeight || 1.2,
+    opacity: section.opacity ?? 1,
+  };
+
+  const isFront = sectionsFront.some(s => s.id === section.id);
+  if (isFront) setElementsFront(prev => [...prev, clone]);
+  else         setElementsBack(  prev => [...prev, clone]);
+
+  setSelectedElement(clone.id);
+  setSelectedSection(null);
+}, [userData, sectionsFront, sectionsBack]);
+
   const moveElementToBack = (element) => {
     push(s => ({
       ...s,
@@ -329,8 +352,6 @@ export default function Editor() {
   };
 
   const allElements = [...elementsFront, ...elementsBack];
-
-  // Keep allElementsRef always fresh
   useEffect(() => { allElementsRef.current = allElements; });
 
   const handleDragElement = (element, coords, targetSide) => setDragPreview({ element, x: coords.x, y: coords.y, targetSide });
@@ -391,9 +412,6 @@ export default function Editor() {
     setSelectedElement(null);
   };
 
-  // -------------------------------------------------------------------------
-  // QR Code helpers
-  // -------------------------------------------------------------------------
   const handleAddQRCode = useCallback(() => {
     const allSections = [...sectionsFront, ...sectionsBack];
     const vcard = buildVCard(userData, allSections);
@@ -416,36 +434,16 @@ export default function Editor() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userDataKey]);
 
-  // -------------------------------------------------------------------------
-  // Keyboard shortcuts — single stable listener using refs
-  // -------------------------------------------------------------------------
   useEffect(() => {
     const onKey = (e) => {
       const ctrl    = e.ctrlKey || e.metaKey;
       const tag     = document.activeElement?.tagName?.toLowerCase();
       const inInput = tag === 'input' || tag === 'textarea' || tag === 'select';
 
-      // ── Always active ──
+      if (ctrl && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoRef.current(); return; }
+      if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redoRef.current(); return; }
+      if (ctrl && e.key === 's') { e.preventDefault(); saveNowRef.current(); return; }
 
-      // Undo  Ctrl+Z
-      if (ctrl && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undoRef.current();
-        return;
-      }
-      // Redo  Ctrl+Y  or  Ctrl+Shift+Z
-      if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-        e.preventDefault();
-        redoRef.current();
-        return;
-      }
-      // Save  Ctrl+S
-      if (ctrl && e.key === 's') {
-        e.preventDefault();
-        saveNowRef.current();
-        return;
-      }
-      // Escape
       if (e.key === 'Escape') {
         if (previewModeRef.current) { setPreviewMode(false); return; }
         setSelectedSection(null); setSectionAnchorRect(null);
@@ -453,32 +451,18 @@ export default function Editor() {
         return;
       }
 
-      // ── Skip when typing in an input ──
       if (inInput) return;
 
       const selId = selectedElementRef.current;
 
-      // Copy  Ctrl+C
-      if (ctrl && e.key === 'c' && selId) {
-        e.preventDefault();
-        copyElement(selId);
-        return;
-      }
-      // Paste  Ctrl+V
-      if (ctrl && e.key === 'v') {
-        e.preventDefault();
-        pasteElement();
-        return;
-      }
-      // Delete / Backspace
+      if (ctrl && e.key === 'c' && selId) { e.preventDefault(); copyElement(selId); return; }
+      if (ctrl && e.key === 'v') { e.preventDefault(); pasteElement(); return; }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selId) {
-          e.preventDefault();
-          deleteElementRef.current(selId);
-        }
+        if (selId) { e.preventDefault(); deleteElementRef.current(selId); }
         return;
       }
-      // Arrow keys
+
       if (selId && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
@@ -489,10 +473,8 @@ export default function Editor() {
         return;
       }
     };
-
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  // ← empty deps: listener is registered once, reads fresh values via refs
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -514,9 +496,6 @@ export default function Editor() {
     ? { ...selectedTemplate, sectionsFront, sectionsBack }
     : null;
 
-  // -------------------------------------------------------------------------
-  // Download
-  // -------------------------------------------------------------------------
   const downloadCanvasImages = useCallback(async () => {
     const prevSelectedSection = selectedSection;
     const prevSelectedElement = selectedElement;
@@ -562,18 +541,13 @@ export default function Editor() {
     setSelectedElement(prevSelectedElement);
   }, [selectedSection, selectedElement]);
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
   return (
     <div className={`editor-container${previewMode ? ' preview-mode' : ''}`} ref={editorRef}>
 
       {previewMode && (
         <div className="preview-bar">
           <span className="preview-bar-label">Preview Mode</span>
-          <button className="preview-bar-exit" onClick={() => setPreviewMode(false)}>
-            ✕ Exit Preview
-          </button>
+          <button className="preview-bar-exit" onClick={() => setPreviewMode(false)}>✕ Exit Preview</button>
         </div>
       )}
 
@@ -642,6 +616,8 @@ export default function Editor() {
             userData={userData}
             sections={sectionsFront}
             isActive={activeCanvas === 'front'}
+            onDropElementOutside={deleteElement}
+            onDropSectionOutside={handleDeleteSection}
           />
         </div>
 
@@ -706,6 +682,7 @@ export default function Editor() {
           onDeleteSection={handleDeleteSection}
           onDeleteElement={deleteElement}
           onDuplicateElement={duplicateElement}
+          onDuplicateSection={duplicateSection}
         />
       )}
     </div>

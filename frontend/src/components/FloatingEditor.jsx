@@ -15,6 +15,8 @@ export default function FloatingEditor({
   onDeleteSection,
   onDeleteElement,
   onReorderSection,
+  onDuplicateElement,
+  onDuplicateSection,
 }) {
   if ((!selectedSection && !selectedElement) || !anchorRect) return null;
 
@@ -36,8 +38,8 @@ export default function FloatingEditor({
   const editingSection = !!selectedSection;
   const el = selectedElement;
 
-  const isLogo     = editingSection && selectedSection.type === 'logo';
-  const isText     = editingSection && selectedSection.type === 'text';
+  const isLogo      = editingSection && selectedSection.type === 'logo';
+  const isText      = editingSection && selectedSection.type === 'text';
   const isNameField = isText && selectedSection.field === 'name';
 
   const isTextEl  = !editingSection && el?.type === 'text';
@@ -45,6 +47,19 @@ export default function FloatingEditor({
   const isShapeEl = !editingSection && el?.type === 'shape';
   const isQREl    = !editingSection && el?.type === 'qr';
   const isIconEl  = isImageEl && (el?.id || '').startsWith('icon-');
+
+  const canDuplicate = editingSection
+    ? !!onDuplicateSection
+    : !!el && !!onDuplicateElement;
+
+  const handleDuplicate = () => {
+    if (editingSection && onDuplicateSection) {
+      onDuplicateSection(selectedSection);
+    } else if (el && onDuplicateElement) {
+      onDuplicateElement(el.id);
+    }
+    onClose();
+  };
 
   const getValue = (field) => userData[field] ?? '';
 
@@ -123,10 +138,10 @@ export default function FloatingEditor({
       <div className="fe-group">
         <label className="fe-label">Layer</label>
         <div className="fe-toolbar">
-          <button className="fe-tool-btn" onClick={() => onReorderSection(id, 'back')}   title="To Back">⬇ Back</button>
+          <button className="fe-tool-btn" onClick={() => onReorderSection(id, 'back')}     title="To Back">⬇ Back</button>
           <button className="fe-tool-btn" onClick={() => onReorderSection(id, 'backward')} title="Backward">↓ Bwd</button>
           <button className="fe-tool-btn" onClick={() => onReorderSection(id, 'forward')}  title="Forward">↑ Fwd</button>
-          <button className="fe-tool-btn" onClick={() => onReorderSection(id, 'front')}  title="To Front">⬆ Front</button>
+          <button className="fe-tool-btn" onClick={() => onReorderSection(id, 'front')}    title="To Front">⬆ Front</button>
         </div>
       </div>
     </>
@@ -140,6 +155,16 @@ export default function FloatingEditor({
           <span className="fe-header-title">{label}</span>
         </div>
         <div className="fe-header-actions">
+          {canDuplicate && (
+            <button
+              className="fe-tool-btn"
+              title="Duplicate"
+              onClick={handleDuplicate}
+              style={{ fontSize: 11, padding: '3px 8px', marginRight: 4, background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 6, color: '#a5b4fc', cursor: 'pointer' }}
+            >
+              ⧉ Duplicate
+            </button>
+          )}
           <button className="fe-delete" onClick={() => {
             if (editingSection) onDeleteSection(selectedSection.id);
             else if (el) onDeleteElement(el.id);
@@ -151,9 +176,6 @@ export default function FloatingEditor({
 
       <div className="fe-body">
 
-        {/* ═══════════════════════════════════════
-            CANVAS TEXT ELEMENT
-        ════════════════════════════════════════ */}
         {isTextEl && (
           <>
             <div className="fe-group">
@@ -206,9 +228,6 @@ export default function FloatingEditor({
           </>
         )}
 
-        {/* ═══════════════════════════════════════
-            ICON ELEMENT
-        ════════════════════════════════════════ */}
         {isIconEl && (
           <>
             <div className="fe-group">
@@ -222,9 +241,6 @@ export default function FloatingEditor({
           </>
         )}
 
-        {/* ═══════════════════════════════════════
-            IMAGE ELEMENT (non-icon)
-        ════════════════════════════════════════ */}
         {isImageEl && !isIconEl && (
           <>
             <SizeRow el={el} />
@@ -233,9 +249,6 @@ export default function FloatingEditor({
           </>
         )}
 
-        {/* ═══════════════════════════════════════
-            SHAPE ELEMENT
-        ════════════════════════════════════════ */}
         {isShapeEl && (
           <>
             <div className="fe-group">
@@ -263,9 +276,6 @@ export default function FloatingEditor({
           </>
         )}
 
-        {/* ═══════════════════════════════════════
-            QR CODE ELEMENT
-        ════════════════════════════════════════ */}
         {isQREl && (
           <>
             <p style={{ fontSize:12, color:'#94a3b8', margin:'0 0 8px' }}>
@@ -275,9 +285,6 @@ export default function FloatingEditor({
           </>
         )}
 
-        {/* ═══════════════════════════════════════
-            SECTION: LOGO
-        ════════════════════════════════════════ */}
         {isLogo && (
           <>
             <div className="fe-group">
@@ -309,9 +316,6 @@ export default function FloatingEditor({
           </>
         )}
 
-        {/* ═══════════════════════════════════════
-            SECTION: TEXT
-        ════════════════════════════════════════ */}
         {isText && (
           <>
             <div className="fe-group">
@@ -319,7 +323,7 @@ export default function FloatingEditor({
               {isNameField ? (
                 <div className="fe-dual-input">
                   <input autoFocus type="text" placeholder="First Name" value={getValue('firstName')} onChange={e => onUpdateUserData('firstName',e.target.value)} />
-                  <input type="text" placeholder="Last Name"  value={getValue('lastName')}  onChange={e => onUpdateUserData('lastName', e.target.value)} />
+                  <input type="text" placeholder="Last Name" value={getValue('lastName')} onChange={e => onUpdateUserData('lastName', e.target.value)} />
                 </div>
               ) : (
                 <textarea rows="2" value={getValue(selectedSection.field)}

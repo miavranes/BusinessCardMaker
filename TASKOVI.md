@@ -61,8 +61,8 @@
 
 ## 8. Dupliciranje
 
-- [ ] Dodati "Duplicate" dugme
-- [ ] Implementirati kloniranje elementa
+- [x] Dodati "Duplicate" dugme
+- [x] Implementirati kloniranje elementa
 - [ ] Dodati offset za duplicirani element
 - [ ] Automatski selektovati duplicirani element
 
@@ -99,9 +99,8 @@
 
 ## 13. Izvoz (Export)
 
-- [x] Dodati "Export" dugme
 - [ ] Kreirati ExportModal sa opcijama formata
-- [ ] Implementirati izvoz u PNG (300 DPI)
+- [ ] Implementirati izvoz u PNG,JPG,PDF (300 DPI)
 - [x] Dodati download funkcionalnost
 
 ## 14. Responsivnost

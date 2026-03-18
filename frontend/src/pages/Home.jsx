@@ -163,7 +163,7 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
             <TemplateCard
               key={t.id}
               template={t}
-              onSelect={(template) => navigate(`/editor/${template.id}`)}
+              onSelect={(template) => navigate(`/editor/${template.id}`, { state: { fresh: true } })}
             />
           ))}
         </div>
