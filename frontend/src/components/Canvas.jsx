@@ -64,10 +64,6 @@ const Canvas = forwardRef(({
     ctx.scale(dpr, dpr);
   }, [ref]);
 
-  // ── QR: generate data URLs whenever vcardString changes ──
-  // POPRAVKA: errorCorrectionLevel: 'L' umjesto 'M'
-  // Level L = najviše kapaciteta (~41% više od M), dovoljno za kontakt kartice
-  // margin: 1 umjesto 2 = još malo manje podataka, ali QR ostaje čitljiv
   const qrKey = elements.filter(e => e.type === 'qr').map(e => e.id + e.vcardString).join('|');
   useEffect(() => {
     const qrEls = elements.filter(el => el.type === 'qr' && el.vcardString);
@@ -75,8 +71,8 @@ const Canvas = forwardRef(({
     qrEls.forEach(el => {
       QRCode.toDataURL(el.vcardString, {
         width: 512,
-        margin: 4,                    // ← quiet zone mora biti min 4 modula, iPhone kamera to zahtijeva
-        errorCorrectionLevel: 'L',    // ← KLJUČNA PROMJENA: 'M' → 'L'
+        margin: 4,
+        errorCorrectionLevel: 'L',
         color: { dark: el.qrFg || '#000000', light: el.qrBg || '#ffffff' },
       }).then(url => setQrDataUrls(prev => ({ ...prev, [el.id]: url })))
         .catch(err => console.error('QR generation failed:', err));
@@ -144,17 +140,7 @@ const Canvas = forwardRef(({
       ctx.restore();
     });
 
-    if (dragPreview) {
-      const side = isBack ? 'back' : 'front';
-      if (dragPreview.targetSide === side) {
-        const g = { ...dragPreview.element, x: dragPreview.x, y: dragPreview.y };
-        ctx.save(); ctx.globalAlpha = 0.4;
-        if (g.type === 'text') drawText(ctx, g);
-        else if (g.type === 'shape') drawShape(ctx, g);
-        else if (g.type === 'image' && g.imgElement) drawImage(ctx, g);
-        ctx.restore();
-      }
-    }
+    // drag preview uklonjen
   }, [elements, selectedElement, backgroundColor, template, showPreview, sections, userData, dragPreview]);
 
   function drawText(ctx, el) {
@@ -196,17 +182,14 @@ const Canvas = forwardRef(({
     if (!el.imgElement) return;
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    if (el.color) {
-      ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
-      ctx.globalCompositeOperation = 'source-in';
-      ctx.fillStyle = el.color;
-      ctx.fillRect(el.x, el.y, el.width, el.height);
-      ctx.globalCompositeOperation = 'source-over';
-    } else {
-      ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
-    }
+    // Boja je ugrađena direktno u SVG pri kreiranju ikone (u Sidebar.jsx),
+    // pa ovdje samo crtamo sliku bez ikakve composite operacije.
+    // color property se više ne koristi za ikone — ostaje samo za legacy podršku.
+    ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
   }
 
+  // ── FIX: getBounds uvijek koristi el.width/el.height ako su postavljeni i > 0,
+  // s fallbackom na imgElement prirodne dimenzije, i minimalnom veličinom od 20px ──
   function getBounds(el) {
     if (el.type === 'text') {
       if (el.width && el.height) {
@@ -220,7 +203,15 @@ const Canvas = forwardRef(({
       let maxW = 0; lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
       return { x: el.x, y: el.y, w: Math.max(maxW, 30), h: Math.max(lines.length * lh, 30) };
     }
-    return { x: el.x, y: el.y, w: el.width||80, h: el.height||80 };
+    // ── FIX: za image/shape, koristi stvarne dimenzije sa minimalnom zaštitom ──
+    // Ako el.width/el.height postoje i > 0, koristi ih.
+    // Ako ne, pokušaj uzeti prirodne dimenzije iz imgElement.
+    // Fallback: 80px.
+    let w = el.width;
+    let h = el.height;
+    if ((!w || w < 1) && el.imgElement) w = el.imgElement.naturalWidth  || 80;
+    if ((!h || h < 1) && el.imgElement) h = el.imgElement.naturalHeight || 80;
+    return { x: el.x, y: el.y, w: Math.max(w || 80, 20), h: Math.max(h || 80, 20) };
   }
 
   function getMousePos(e) {
@@ -641,6 +632,9 @@ const Canvas = forwardRef(({
           const isSelected = el.id === selectedElement;
           if (!isSelected) return null;
           const b = getBounds(el);
+          // ── FIX: osiguraj da overlay ima minimalne dimenzije da bude vidljiv ──
+          const wPct = Math.max((b.w / CANVAS_W) * 100, 1);
+          const hPct = Math.max((b.h / CANVAS_H) * 100, 1);
           return (
             <div
               key={`overlay-${el.id}`}
@@ -648,8 +642,8 @@ const Canvas = forwardRef(({
                 position: 'absolute',
                 left:   `${(b.x / CANVAS_W) * 100}%`,
                 top:    `${(b.y / CANVAS_H) * 100}%`,
-                width:  `${(b.w / CANVAS_W) * 100}%`,
-                height: `${(b.h / CANVAS_H) * 100}%`,
+                width:  `${wPct}%`,
+                height: `${hPct}%`,
                 zIndex: 8, boxSizing: 'border-box', pointerEvents: 'none',
                 border: '1.5px solid rgba(99,102,241,0.8)',
                 borderRadius: '3px', background: 'rgba(99,102,241,0.08)',

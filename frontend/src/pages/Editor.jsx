@@ -69,7 +69,6 @@ function serializeElements(elements) {
   return elements.map(el => { const { imgElement, ...rest } = el; return rest; });
 }
 
-// ── FIX: save/load helpers koji rade pouzdano ──────────────────────────────
 function saveToStorage(key, data) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
@@ -102,12 +101,8 @@ export default function Editor() {
   const canvasBackRef  = useRef(null);
   const editorRef      = useRef(null);
 
-  // ── FIX: storageKey mora biti stabilan string, ne zavisi od render-a ──
   const storageKey = `${STORAGE_KEY}_${templateId || 'blank'}`;
 
-  // ── FIX: učitaj saved podatke jednom, na mount-u, uz provjeru isFresh ──
-  // Ranije: saved se računao svaki render, a isFresh provjera bila je u useEffect
-  // koji se izvršava NAKON prvog rendera — pa bi stari podaci bili učitani.
   const saved = useRef((() => {
     if (isFresh) {
       localStorage.removeItem(storageKey);
@@ -157,9 +152,6 @@ export default function Editor() {
   }, [silentSet]);
 
   const [userData, setUserData] = useState(() => {
-    // ── FIX: isFresh znači novi template — ignoriši sve što je saved ──
-    // Ranije: saved?.userData se koristio čak i kad je isFresh=true jer
-    // useEffect koji briše localStorage dolazi prekasno (nakon prvog rendera).
     if (isFresh || !saved?.userData) {
       const base = { ...selectedTemplate?.defaultData, ...prefill };
       if (prefill.name) {
@@ -177,8 +169,6 @@ export default function Editor() {
 
   const [saveStatus, setSaveStatus] = useState('saved');
 
-  // ── FIX: koristimo ref za trenutne vrijednosti da saveNow ne mora biti
-  // u dependency listi useCallback-a — tako interval ostaje stabilan ──
   const stateRef    = useRef(state);
   const userDataRef = useRef(userData);
   const bgFrontRef  = useRef(null);
@@ -200,12 +190,10 @@ export default function Editor() {
       bgBack:        bgBackRef.current,
     });
     setSaveStatus(ok ? 'saved' : 'error');
-  }, [storageKey]); // ← samo storageKey, stabilan string
+  }, [storageKey]);
 
-  // Označi kao unsaved kad se nešto promijeni
   useEffect(() => { setSaveStatus('unsaved'); }, [state, userData]);
 
-  // ── FIX: autosave interval sada ostaje stabilan jer saveNow ne mijenja referencu ──
   useEffect(() => {
     const id = setInterval(saveNow, AUTOSAVE_INTERVAL);
     return () => clearInterval(id);
@@ -338,10 +326,13 @@ export default function Editor() {
     const ts = Date.now();
 
     if (section.type === 'logo') {
-      const w = Math.round(section.width  * CANVAS_W);
-      const h = Math.round(section.height * CANVAS_H);
-      const x = Math.round(section.x * CANVAS_W) + 16;
-      const y = Math.round(section.y * CANVAS_H) + 16;
+      // ── FIX: osiguraj minimalne dimenzije za logo klon (min 40px) ──
+      // Sekcija čuva relativne koordinate (0–1), konvertujemo u pikselske.
+      // Math.max(..., 40) sprječava slučaj gdje section.width/height ≈ 0.
+      const w = Math.max(Math.round((section.width  || 0) * CANVAS_W), 40);
+      const h = Math.max(Math.round((section.height || 0) * CANVAS_H), 40);
+      const x = Math.round((section.x || 0) * CANVAS_W) + 16;
+      const y = Math.round((section.y || 0) * CANVAS_H) + 16;
 
       let src = userData.logoUrl || section.src || null;
       if (!src) {
@@ -375,6 +366,7 @@ export default function Editor() {
       addToCanvas(prev => [...prev, clone]);
       setSelectedElement(cloneId);
       setSelectedSection(null);
+      // ── FIX: setElRect pozivamo sa ispravnim dimenzijama klona ──
       setElRect(x, y, w, h, isFront);
       return;
     }
@@ -527,7 +519,6 @@ export default function Editor() {
     setElementAnchorRect({ left, right: left + widthPx, top, bottom: top + heightPx, width: widthPx, height: heightPx });
   }, [allElements, selectedElement, activeCanvas]);
 
-  // ── FIX: bgFront/bgBack se čuvaju i u ref-u da saveNow ima pristup bez dependency liste ──
   const [bgFront, setBgFront] = useState(saved?.bgFront ?? selectedTemplate?.bg     ?? '#ffffff');
   const [bgBack,  setBgBack]  = useState(saved?.bgBack  ?? selectedTemplate?.bgBack ?? '#ffffff');
   useEffect(() => { bgFrontRef.current = bgFront; }, [bgFront]);
@@ -573,7 +564,7 @@ export default function Editor() {
   const handleAddQRCode = useCallback(() => {
     const allSections = [...sectionsFront, ...sectionsBack];
     const vcard = buildVCard(userData, allSections);
-    const size = 120; // ← povećano sa 90 na 120 za bolju čitljivost
+    const size = 120;
     addElement({
       id: `qr-${Date.now()}`, type: 'qr',
       x: (CANVAS_W - size) / 2, y: (CANVAS_H - size) / 2,

@@ -24,6 +24,11 @@ export default function FloatingEditor({
 
   useEffect(() => {
     const handleClickOutside = (e) => {
+      // ── FIX: ne zatvaraj panel ako je klik unutar canvas-side ili canvas-area ──
+      // Klik na canvas element (logo, tekst, shape) dolazi kroz canvas-side div.
+      // Bez ove provjere, handleClickOutside se okidao na isti mousedown kojim
+      // korisnik selektuje element, zatvarajući panel prije nego što se otvori.
+      if (e.target.closest('.canvas-side') || e.target.closest('.canvas-area')) return;
       if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -46,11 +51,8 @@ export default function FloatingEditor({
   const isImageEl = !editingSection && el?.type === 'image';
   const isShapeEl = !editingSection && el?.type === 'shape';
   const isQREl    = !editingSection && el?.type === 'qr';
-  // isIconEl: ikona iz sekcije (icon-xxx prefix) ILI element tagovan kao _sectionType='icon'
   const isIconEl  = isImageEl && ((el?.id || '').startsWith('icon-') || el?._sectionType === 'icon');
-  // isLogoEl: duplirani logo element (tagovan _sectionType='logo')
   const isLogoEl  = isImageEl && el?._sectionType === 'logo';
-  // _sectionField za text elemente koji su duplirani iz sekcije
   const isNameFromSection = isTextEl && el?._sectionField === 'name';
 
   const canDuplicate = editingSection
@@ -63,9 +65,6 @@ export default function FloatingEditor({
     } else if (el && onDuplicateElement) {
       onDuplicateElement(el.id);
     }
-    // Ne pozivamo onClose() — duplicateSection/duplicateElement postavljaju
-    // selectedElement na novi klon, a onClose() bi to obrisao (setSelectedElement(null))
-    // što rezultira da se FloatingEditor ne otvara bez draga na drugi canvas.
   };
 
   const getValue = (field) => userData[field] ?? '';
@@ -155,9 +154,6 @@ export default function FloatingEditor({
     </>
   );
 
-  // ── Zajednički handler za upload slike direktno na canvas element ──
-  // Čita fajl kao base64 dataURL (permanentno, nema isteka kao blob URL),
-  // kreira novi Image objekat i ažurira element sa src + imgElement.
   const handleImageElementUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -205,7 +201,6 @@ export default function FloatingEditor({
             <div className="fe-group">
               <label className="fe-label">Content</label>
               {isNameFromSection ? (
-                // Duplirani name element — isti dual input kao u sekciji
                 <div className="fe-dual-input">
                   <input
                     autoFocus
@@ -214,7 +209,6 @@ export default function FloatingEditor({
                     value={userData?.firstName ?? ''}
                     onChange={e => {
                       if (onUpdateUserData) onUpdateUserData('firstName', e.target.value);
-                      // Ažuriramo i content elementa direktno
                       const full = `${e.target.value} ${userData?.lastName ?? ''}`.trim();
                       onUpdateElement(el.id, { content: full });
                     }}
@@ -295,7 +289,6 @@ export default function FloatingEditor({
 
         {isLogoEl && (
           <>
-            {/* Isti panel kao logo sekcija, ali radi na canvas elementu (pikselske dimenzije) */}
             <div className="fe-group">
               <label className="fe-label">Replace Image</label>
               <input

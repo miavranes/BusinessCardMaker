@@ -94,13 +94,31 @@ const CATEGORIES = [
   },
 ];
 
-function svgFromButton(buttonEl) {
+function svgFromButton(buttonEl, color) {
   const svg = buttonEl.querySelector('svg');
   if (!svg) return null;
   const clone = svg.cloneNode(true);
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   clone.setAttribute('width', '120');
   clone.setAttribute('height', '120');
+  clone.setAttribute('viewBox', '0 0 24 24');
+
+  if (color) {
+    clone.setAttribute('stroke', color);
+    clone.querySelectorAll('[fill]:not([fill="none"])').forEach(el => {
+      el.setAttribute('fill', color);
+    });
+    clone.querySelectorAll('[stroke]:not([stroke="none"])').forEach(el => {
+      el.setAttribute('stroke', color);
+    });
+    clone.querySelectorAll('*').forEach(el => {
+      if (el.getAttribute('stroke') === 'currentColor') el.setAttribute('stroke', color);
+      if (el.getAttribute('fill') === 'currentColor')   el.setAttribute('fill', color);
+    });
+    if (clone.getAttribute('stroke') === 'currentColor') clone.setAttribute('stroke', color);
+    if (clone.getAttribute('fill')   === 'currentColor') clone.setAttribute('fill', color);
+  }
+
   const svgString = new XMLSerializer().serializeToString(clone);
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
 }
@@ -164,26 +182,33 @@ export default function Sidebar({
   const [qrLoading, setQrLoading] = useState(false);
 
   const handleIconDragStart = (e) => {
-    const dataUrl = svgFromButton(e.currentTarget);
+    // ── FIX: boja se ugrađuje u SVG, ne šalje se kao poseban data transfer ──
+    const dataUrl = svgFromButton(e.currentTarget, iconColor);
     if (!dataUrl) { e.preventDefault(); return; }
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/x-icon-svg', dataUrl);
     e.dataTransfer.setData('text/plain', dataUrl);
-    e.dataTransfer.setData('application/x-icon-color', iconColor);
+    // color se više ne šalje — boja je već u SVG-u
   };
 
   const addIcon = (e) => {
-    const dataUrl = svgFromButton(e.currentTarget);
+    const dataUrl = svgFromButton(e.currentTarget, iconColor);
     if (!dataUrl) return;
     const img = new window.Image();
     img.onload = () => {
-      const W = 60; const H = 60;
+      // 80x80 umjesto 60x60 — ikona vizualno bolje popunjava bounding box
+      const W = 80; const H = 80;
+      const offsetX = Math.floor(Math.random() * 40);
+      const offsetY = Math.floor(Math.random() * 40);
       onAddElement({
         id: `icon-${Date.now()}`,
         type: 'image',
-        x: (580 - W) / 2, y: (330 - H) / 2,
+        x: (580 - W) / 2 + offsetX,
+        y: (330 - H) / 2 + offsetY,
         width: W, height: H,
-        imgElement: img, src: dataUrl, opacity: 1, color: iconColor,
+        imgElement: img,
+        src: dataUrl,
+        opacity: 1,
       });
     };
     img.src = dataUrl;
