@@ -25,6 +25,7 @@ export default function OnboardingModal({ onClose }) {
 
   const handleStart = () => {
     if (!selectedTemplateId) return;
+    sessionStorage.setItem(`editor_is_new_${selectedTemplateId}`, '1');
     navigate(`/editor/${selectedTemplateId}`, { state: { prefill: formData, fresh: true } });
     onClose();
   };
@@ -92,7 +93,7 @@ export default function OnboardingModal({ onClose }) {
                         template={t}
                         isBack={false}
                         containerWidth={220}
-                        sections={t.sectionsFront}  
+                        sections={t.sectionsFront}
                       /></div>
                     <p className="modal-template-name">{t.name}</p>
                   </div>

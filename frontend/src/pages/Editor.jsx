@@ -91,7 +91,18 @@ export default function Editor() {
   const { templateId } = useParams();
   const location = useLocation();
   const prefill = location.state?.prefill ?? {};
-  const isFresh = location.state?.fresh === true;
+
+  // isFresh je true samo kad korisnik dolazi PRVI PUT iz forme —
+  // sessionStorage flag se briše odmah, pa refresh više ne triggeruje fresh.
+  const isFresh = (() => {
+    if (location.state?.fresh !== true) return false;
+    const key = `editor_is_new_${templateId || 'blank'}`;
+    if (sessionStorage.getItem(key) === '1') {
+      sessionStorage.removeItem(key);
+      return true;
+    }
+    return false;
+  })();
 
   const selectedTemplate = templateId
     ? templates.find(t => t.id === Number(templateId))
@@ -326,9 +337,6 @@ export default function Editor() {
     const ts = Date.now();
 
     if (section.type === 'logo') {
-      // ── FIX: osiguraj minimalne dimenzije za logo klon (min 40px) ──
-      // Sekcija čuva relativne koordinate (0–1), konvertujemo u pikselske.
-      // Math.max(..., 40) sprječava slučaj gdje section.width/height ≈ 0.
       const w = Math.max(Math.round((section.width  || 0) * CANVAS_W), 40);
       const h = Math.max(Math.round((section.height || 0) * CANVAS_H), 40);
       const x = Math.round((section.x || 0) * CANVAS_W) + 16;
@@ -366,7 +374,6 @@ export default function Editor() {
       addToCanvas(prev => [...prev, clone]);
       setSelectedElement(cloneId);
       setSelectedSection(null);
-      // ── FIX: setElRect pozivamo sa ispravnim dimenzijama klona ──
       setElRect(x, y, w, h, isFront);
       return;
     }
