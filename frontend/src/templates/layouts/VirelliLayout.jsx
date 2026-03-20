@@ -1,6 +1,5 @@
 import React from 'react';
 import logo from '../../assets/logo.png';
-import qrCode from '../../assets/qr.svg';
 import { getSectionPos, getSectionTextStyle } from '../../sectionSchema';
 
 export const virelliTemplate = {
@@ -61,7 +60,7 @@ const findLogoSections = (sections, isBack) => {
 
 const findMovedInSections = (sections, isBack) => {
   const otherPrefix = isBack ? 'front-' : 'back-';
-  return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
+  return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo' && s.type !== 'qr');
 };
 
 export default function VirelliLayout({
@@ -70,7 +69,6 @@ export default function VirelliLayout({
   const t = template || virelliTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
-
   const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
 
   const getSectionStyle = (section) => ({
@@ -91,11 +89,8 @@ export default function VirelliLayout({
   const renderTextSection = (section) => {
     const Icon = FIELD_ICONS[section.field];
     return (
-      <div
-        key={section.id}
-        onClick={(e) => handleClick(e, section)}
-        style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center', gap: Icon ? `${6 * scale}px` : 0 }}
-      >
+      <div key={section.id} onClick={(e) => handleClick(e, section)}
+        style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center', gap: Icon ? `${6 * scale}px` : 0 }}>
         {Icon && <Icon color={t.text} size={10 * scale} />}
         <span>{getContent(section)}</span>
       </div>
@@ -104,10 +99,7 @@ export default function VirelliLayout({
 
   const logoSections = findLogoSections(sections, isBack);
   const logoEls = logoSections.map(logoSection => (
-    <img
-      key={logoSection.id}
-      src={data.logoUrl || logo}
-      alt="Logo"
+    <img key={logoSection.id} src={data.logoUrl || logo} alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
       style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
     />
@@ -116,8 +108,7 @@ export default function VirelliLayout({
   const movedInSections = findMovedInSections(sections, isBack);
 
   const base = {
-    width: '100%', height: '100%',
-    background: resolvedBg,
+    width: '100%', height: '100%', background: resolvedBg,
     position: 'relative', overflow: 'hidden', boxSizing: 'border-box',
   };
 
@@ -129,10 +120,8 @@ export default function VirelliLayout({
 
     return (
       <div style={base}>
-        <div style={{ position: 'absolute', top: `${20 * scale}px`, right: `${20 * scale}px`, width: `${60 * scale}px`, height: `${60 * scale}px`, pointerEvents: 'none', zIndex: 0 }}>
-          <img src={qrCode} alt="QR" style={{ width: '100%', height: '100%' }} />
-        </div>
         {logoEls}
+
         {backName    && renderTextSection(backName)}
         {backPhone   && renderTextSection(backPhone)}
         {backEmail   && renderTextSection(backEmail)}

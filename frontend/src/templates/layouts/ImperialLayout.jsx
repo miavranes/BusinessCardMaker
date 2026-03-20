@@ -1,6 +1,5 @@
 import React from 'react';
 import logoIcon from '../../assets/logo.png';
-import qrCode from '../../assets/qr.svg';
 import { getSectionPos, getSectionTextStyle } from '../../sectionSchema';
 
 export const imperialTemplate = {
@@ -25,7 +24,7 @@ export const imperialTemplate = {
     instagram: "miavranes",
   },
   sectionsFront: [
-    { id: 'front-logo', type: 'logo', label: 'Logo', x: 0.25, y: 0.20, width: 0.50, height: 0.60 }
+    { id: 'front-logo', type: 'logo', label: 'Logo', x: 0.25, y: 0.20, width: 0.50, height: 0.60 },
   ],
   sectionsBack: [
     { id: 'back-name',      type: 'text', field: 'name',      label: 'Full Name', x: 0.55, y: 0.08, width: 0.40, height: 0.12, fontSize: 14, fontFamily: "'Jost', sans-serif", fontWeight: '400', color: '#c8c2b8' },
@@ -34,6 +33,7 @@ export const imperialTemplate = {
     { id: 'back-email',     type: 'text', field: 'email',     label: 'Email',     x: 0.06, y: 0.70, width: 0.40, height: 0.08, fontSize: 8,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#c8c2b8' },
     { id: 'back-linkedin',  type: 'text', field: 'linkedin',  label: 'LinkedIn',  x: 0.06, y: 0.80, width: 0.40, height: 0.08, fontSize: 8,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#c8c2b8' },
     { id: 'back-instagram', type: 'text', field: 'instagram', label: 'Instagram', x: 0.06, y: 0.90, width: 0.40, height: 0.08, fontSize: 8,  fontFamily: "'Jost', sans-serif", fontWeight: '300', color: '#c8c2b8' },
+
   ],
 };
 
@@ -54,7 +54,7 @@ const findLogoSections = (sections, isBack) => {
 
 const findMovedInSections = (sections, isBack) => {
   const otherPrefix = isBack ? 'front-' : 'back-';
-  return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo');
+  return sections.filter(s => s.id.startsWith(otherPrefix) && s.id.includes('-moved-') && s.type !== 'logo' && s.type !== 'qr');
 };
 
 export default function ImperialLayout({
@@ -63,7 +63,6 @@ export default function ImperialLayout({
   const t = template || imperialTemplate;
   const scale = (containerWidth || 400) / 400;
   const data = { ...t.defaultData, ...userData };
-
   const resolvedBg = backgroundColor || (isBack ? t.bgBack : t.bg) || t.bg;
 
   const getSectionStyle = (section) => ({
@@ -82,43 +81,23 @@ export default function ImperialLayout({
   };
 
   const renderLabeledSection = (section) => (
-    <div
-      key={section.id}
-      onClick={(e) => handleClick(e, section)}
-      style={{
-        ...getSectionPos(sections, section.id),
-        ...getSectionStyle(section),
-        display: 'flex', alignItems: 'center',
-        gap: `${4 * scale}px`,
-        letterSpacing: `${0.03 * scale}em`,
-      }}
-    >
+    <div key={section.id} onClick={(e) => handleClick(e, section)}
+      style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center', gap: `${4 * scale}px`, letterSpacing: `${0.03 * scale}em` }}>
       <span style={{ opacity: 0.5 }}>{section.label?.toLowerCase()} :</span>
       <span style={{ opacity: 0.85 }}>{getContent(section)}</span>
     </div>
   );
 
   const renderTextSection = (section) => (
-    <div
-      key={section.id}
-      onClick={(e) => handleClick(e, section)}
-      style={{
-        ...getSectionPos(sections, section.id),
-        ...getSectionStyle(section),
-        display: 'flex', alignItems: 'center',
-        letterSpacing: `${0.03 * scale}em`,
-      }}
-    >
+    <div key={section.id} onClick={(e) => handleClick(e, section)}
+      style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center', letterSpacing: `${0.03 * scale}em` }}>
       {getContent(section)}
     </div>
   );
 
   const logoSections = findLogoSections(sections, isBack);
   const logoEls = logoSections.map(logoSection => (
-    <img
-      key={logoSection.id}
-      src={data.logoUrl || logoIcon}
-      alt="Logo"
+    <img key={logoSection.id} src={data.logoUrl || logoIcon} alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
       style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
     />
@@ -129,8 +108,7 @@ export default function ImperialLayout({
   if (!isBack) {
     return (
       <div style={{
-        width: '100%', height: '100%',
-        background: resolvedBg,
+        width: '100%', height: '100%', background: resolvedBg,
         backgroundImage: `radial-gradient(ellipse at 30% 40%, rgba(255,255,255,0.03) 0%, transparent 60%)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative', boxSizing: 'border-box',
@@ -158,7 +136,6 @@ export default function ImperialLayout({
           {data.firstName} {data.lastName}
         </div>
       )}
-
       {backTitle && (
         <div onClick={(e) => handleClick(e, backTitle)}
           style={{ ...getSectionPos(sections, backTitle.id), ...getSectionStyle(backTitle), display: 'flex', alignItems: 'flex-start', textAlign: 'right', justifyContent: 'flex-end' }}>
@@ -173,14 +150,7 @@ export default function ImperialLayout({
 
       {movedInSections.map(s => renderTextSection(s))}
 
-      <div style={{
-        position: 'absolute', right: `${5 * scale}%`, bottom: `${5 * scale}%`,
-        width: `${70 * scale}px`, height: `${70 * scale}px`,
-        border: `${1 * scale}px solid rgba(0,0,0,0.12)`,
-        padding: `${4 * scale}px`, background: 'white', flexShrink: 0,
-      }}>
-        <img src={qrCode} alt="QR Code" style={{ width: '100%', height: '100%' }} />
-      </div>
+
     </div>
   );
 }
