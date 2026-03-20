@@ -71,6 +71,7 @@ export default function LuminaLayout({
 
   const getSectionStyle = (section) => ({
     ...getSectionTextStyle(section, scale, { color: t.text, fontFamily: t.fontBody }),
+    opacity: section.opacity ?? 1,
     cursor: 'pointer',
   });
 
@@ -85,17 +86,19 @@ export default function LuminaLayout({
   };
 
   const renderTextSection = (section) => (
-    <div key={section.id} onClick={(e) => handleClick(e, section)}
-      style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center' }}>
+  <div key={section.id} onClick={(e) => handleClick(e, section)}
+    style={{ ...getSectionPos(sections, section.id), ...getSectionStyle(section), display: 'flex', alignItems: 'center' }}>
+    <span style={{ width: '100%', textAlign: getSectionStyle(section).textAlign }}>
       {getContent(section)}
-    </div>
-  );
+    </span>
+  </div>
+);
 
   const logoSections = findLogoSections(sections, isBack);
   const logoEls = logoSections.map(logoSection => (
     <img key={logoSection.id} src={data.logoUrl || logoIcon} alt="Logo"
       onClick={(e) => handleClick(e, logoSection)}
-      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer' }}
+      style={{ ...getSectionPos(sections, logoSection.id), objectFit: 'contain', cursor: 'pointer', opacity: logoSection.opacity ?? 1 }}
     />
   ));
 
@@ -109,16 +112,9 @@ export default function LuminaLayout({
     return (
       <div style={{ width: '100%', height: '100%', background: resolvedBg, position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
 
-        {/* Zlatna vertikalna linija lijevo */}
         <div style={{ position: 'absolute', left: `${28 * scale}px`, top: `${12 * scale}px`, bottom: `${12 * scale}px`, width: `${1.5 * scale}px`, background: '#c9a84c', pointerEvents: 'none' }} />
-
-        {/* Zlatna horizontalna linija ispod naziva */}
         <div style={{ position: 'absolute', left: `${36 * scale}px`, right: `${16 * scale}px`, top: `${74 * scale}px`, height: `${1 * scale}px`, background: 'rgba(201,168,76,0.25)', pointerEvents: 'none' }} />
-
-        {/* Zlatna tačka gore lijevo */}
         <div style={{ position: 'absolute', left: `${22 * scale}px`, top: `${10 * scale}px`, width: `${9 * scale}px`, height: `${9 * scale}px`, borderRadius: '50%', background: '#c9a84c', pointerEvents: 'none' }} />
-
-        {/* Zlatna tačka dolje lijevo */}
         <div style={{ position: 'absolute', left: `${22 * scale}px`, bottom: `${10 * scale}px`, width: `${9 * scale}px`, height: `${9 * scale}px`, borderRadius: '50%', background: '#c9a84c', pointerEvents: 'none' }} />
 
         {logoEls}
@@ -182,14 +178,9 @@ export default function LuminaLayout({
   return (
     <div style={{ width: '100%', height: '100%', background: resolvedBg, position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
 
-      {/* Zlatna horizontalna linija ispod naslova */}
       <div style={{ position: 'absolute', left: `${16 * scale}px`, right: `${16 * scale}px`, top: `${39 * scale}px`, height: `${1 * scale}px`, background: '#c9a84c', pointerEvents: 'none' }} />
-
-      {/* Dekorativni zlatni kvadrat gore desno */}
       <div style={{ position: 'absolute', right: `${14 * scale}px`, top: `${14 * scale}px`, width: `${22 * scale}px`, height: `${22 * scale}px`, border: `${1.5 * scale}px solid rgba(201,168,76,0.4)`, pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', right: `${19 * scale}px`, top: `${19 * scale}px`, width: `${12 * scale}px`, height: `${12 * scale}px`, background: 'rgba(201,168,76,0.15)', pointerEvents: 'none' }} />
-
-      {/* Tanka zlatna linija lijevo (vertikalna akcentna) */}
       <div style={{ position: 'absolute', left: `${10 * scale}px`, top: `${45 * scale}px`, bottom: `${10 * scale}px`, width: `${1 * scale}px`, background: 'rgba(201,168,76,0.3)', pointerEvents: 'none' }} />
 
       {logoEls}

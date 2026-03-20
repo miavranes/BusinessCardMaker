@@ -24,10 +24,6 @@ export default function FloatingEditor({
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // ── FIX: ne zatvaraj panel ako je klik unutar canvas-side ili canvas-area ──
-      // Klik na canvas element (logo, tekst, shape) dolazi kroz canvas-side div.
-      // Bez ove provjere, handleClickOutside se okidao na isti mousedown kojim
-      // korisnik selektuje element, zatvarajući panel prije nego što se otvori.
       if (e.target.closest('.canvas-side') || e.target.closest('.canvas-area')) return;
       if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
     };
@@ -111,6 +107,7 @@ export default function FloatingEditor({
       <label className="fe-label">Opacity</label>
       <div className="fe-row" style={{ alignItems: 'center', gap: 10 }}>
         <input type="range" min="0" max="1" step="0.05" value={value ?? 1}
+          onMouseDown={e => e.stopPropagation()}
           onChange={e => onChange(parseFloat(e.target.value))}
           style={{ flex: 1 }} />
         <span style={{ minWidth: 32, textAlign: 'right', fontSize: 12 }}>{Math.round((value ?? 1) * 100)}%</span>
@@ -177,10 +174,9 @@ export default function FloatingEditor({
         <div className="fe-header-actions">
           {canDuplicate && (
             <button
-              className="fe-tool-btn"
+              className="fe-duplicate"
               title="Duplicate"
               onClick={handleDuplicate}
-              style={{ fontSize: 11, padding: '3px 8px', marginRight: 4, background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 6, color: '#a5b4fc', cursor: 'pointer' }}
             >
               ⧉ Duplicate
             </button>
@@ -190,7 +186,6 @@ export default function FloatingEditor({
             else if (el) onDeleteElement(el.id);
             onClose();
           }}>Delete</button>
-          <button className="fe-close" onClick={onClose}>Close</button>
         </div>
       </div>
 
@@ -291,13 +286,7 @@ export default function FloatingEditor({
           <>
             <div className="fe-group">
               <label className="fe-label">Replace Image</label>
-              <input
-                type="file"
-                id={`img-upload-${el.id}`}
-                hidden
-                accept="image/*"
-                onChange={handleImageElementUpload}
-              />
+              <input type="file" id={`img-upload-${el.id}`} hidden accept="image/*" onChange={handleImageElementUpload} />
               <label htmlFor={`img-upload-${el.id}`} className="fe-upload-btn">Choose File</label>
             </div>
             <Divider />
@@ -311,13 +300,7 @@ export default function FloatingEditor({
           <>
             <div className="fe-group">
               <label className="fe-label">Replace Image</label>
-              <input
-                type="file"
-                id={`img-upload-${el.id}`}
-                hidden
-                accept="image/*"
-                onChange={handleImageElementUpload}
-              />
+              <input type="file" id={`img-upload-${el.id}`} hidden accept="image/*" onChange={handleImageElementUpload} />
               <label htmlFor={`img-upload-${el.id}`} className="fe-upload-btn">Choose File</label>
             </div>
             <Divider />
@@ -391,6 +374,8 @@ export default function FloatingEditor({
               <label htmlFor="logo-upload-input" className="fe-upload-btn">Choose File</label>
             </div>
             <LayerControls id={selectedSection.id} />
+            <Divider />
+            <OpacityRow value={selectedSection.opacity ?? 1} onChange={v => onUpdateSection(selectedSection.id, { opacity: v })} />
           </>
         )}
 
@@ -488,6 +473,8 @@ export default function FloatingEditor({
               </div>
             </div>
             <LayerControls id={selectedSection.id} />
+            <Divider />
+            <OpacityRow value={selectedSection.opacity ?? 1} onChange={v => onUpdateSection(selectedSection.id, { opacity: v })} />
           </>
         )}
 

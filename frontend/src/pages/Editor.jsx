@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 const DEBUG = false;
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { templates } from '../templates';
 import { reorderSections } from '../sectionSchema';
 import Canvas from '../components/Canvas';
 import FloatingEditor from '../components/FloatingEditor';
 import Sidebar from '../components/Sidebar';
 import { buildVCard } from '../qrGenerator';
+import { encodeShareData, decodeShareData, generateCode } from '../shareUtils';
 import '../css/Editor.css';
 
 const CANVAS_W = 580;
@@ -23,6 +24,204 @@ const FIELD_ICON_SVGS = {
   website: (color) =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
 };
+
+// Maps a section field + userData value to an actionable href
+function getSectionAction(section, userData) {
+  let val = '';
+  if (section.field === 'name') {
+    val = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+  } else {
+    val = userData[section.field] || '';
+  }
+  if (!val) return null;
+
+  const clean = val.trim();
+  switch (section.field) {
+    case 'phone':
+      return { href: `tel:${clean.replace(/\s/g, '')}`, label: 'Call', color: '#22c55e' };
+    case 'email':
+      return { href: `mailto:${clean}`, label: 'Email', color: '#6366f1' };
+    case 'website':
+      return { href: clean.startsWith('http') ? clean : `https://${clean}`, label: 'Visit', color: '#0ea5e9' };
+    case 'instagram':
+      return { href: `https://instagram.com/${clean.replace('@', '')}`, label: 'Instagram', color: '#e1306c' };
+    case 'facebook':
+      return { href: `https://facebook.com/${clean.replace('@', '')}`, label: 'Facebook', color: '#1877f2' };
+    case 'linkedin':
+      return { href: `https://linkedin.com/in/${clean.replace('@', '')}`, label: 'LinkedIn', color: '#0077b5' };
+    case 'twitter':
+      return { href: `https://twitter.com/${clean.replace('@', '')}`, label: 'Twitter / X', color: '#000000' };
+    case 'tiktok':
+      return { href: `https://tiktok.com/@${clean.replace('@', '')}`, label: 'TikTok', color: '#010101' };
+    default:
+      return null;
+  }
+}
+
+// Renders clickable hotspots over a canvas in preview mode
+function PreviewHotspots({ sections, userData, canvasW, canvasH }) {
+  return (
+    <>
+      {sections.map(section => {
+        const action = getSectionAction(section, userData);
+        if (!action) return null;
+        const left   = (section.x      || 0) * 100;
+        const top    = (section.y      || 0) * 100;
+        const width  = (section.width  || 0.9) * 100;
+        const height = Math.max((section.height || 0.12) * 100, 8);
+        return (
+          <a
+            key={section.id}
+            href={action.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={action.label}
+            style={{
+              position: 'absolute',
+              left: `${left}%`, top: `${top}%`,
+              width: `${width}%`, height: `${height}%`,
+              borderRadius: 6,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+              padding: '0 6px',
+              textDecoration: 'none',
+              zIndex: 10,
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = `${action.color}22`; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            <span style={{
+              fontSize: 9, fontWeight: 700, color: action.color,
+              background: `${action.color}22`, borderRadius: 4,
+              padding: '1px 5px', opacity: 0, transition: 'opacity 0.15s',
+              pointerEvents: 'none',
+            }}
+              className="hotspot-label"
+            >
+              {action.label} ↗
+            </span>
+          </a>
+        );
+      })}
+      <style>{`
+        a:hover .hotspot-label { opacity: 1 !important; }
+      `}</style>
+    </>
+  );
+}
+
+// Code gate — shown to recipients before they can view the card
+function CodeGate({ onUnlock }) {
+  const [input, setInput]   = useState('');
+  const [shake, setShake]   = useState(false);
+  const [error, setError]   = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const handleSubmit = () => {
+    const result = onUnlock(input.trim().toUpperCase());
+    if (!result) {
+      setError(true);
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      setTimeout(() => setError(false), 2000);
+      setInput('');
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 0,
+    }}>
+      <style>{`
+        @keyframes shake {
+          0%,100% { transform: translateX(0); }
+          20%      { transform: translateX(-8px); }
+          40%      { transform: translateX(8px); }
+          60%      { transform: translateX(-6px); }
+          80%      { transform: translateX(6px); }
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .code-gate-card { animation: fadeUp 0.5s ease; }
+      `}</style>
+
+      {/* Logo / icon */}
+      <div style={{ marginBottom: 32, opacity: 0.4 }}>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+
+      <div className="code-gate-card" style={{
+        background: 'rgba(255,255,255,0.05)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 20, padding: '40px 48px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24,
+        minWidth: 340,
+        animation: shake ? 'shake 0.5s ease' : undefined,
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>
+            Enter Access Code
+          </h2>
+          <p style={{ margin: '8px 0 0', fontSize: 13, color: '#64748b' }}>
+            This card is protected. Enter the code to view it.
+          </p>
+        </div>
+
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value.toUpperCase())}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          placeholder="XXXXXX"
+          maxLength={6}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: error ? 'rgba(239,68,68,0.1)' : 'rgba(0,0,0,0.3)',
+            border: `1px solid ${error ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
+            borderRadius: 12, padding: '14px 16px',
+            color: '#f1f5f9', fontSize: 24, fontFamily: 'monospace',
+            textAlign: 'center', letterSpacing: '0.4em',
+            outline: 'none', transition: 'border 0.2s, background 0.2s',
+          }}
+        />
+
+        {error && (
+          <p style={{ margin: '-12px 0 -8px', fontSize: 12, color: '#ef4444' }}>
+            Incorrect code. Please try again.
+          </p>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          style={{
+            width: '100%', padding: '13px 0',
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            border: 'none', borderRadius: 12,
+            color: '#fff', fontSize: 14, fontWeight: 700,
+            cursor: 'pointer', letterSpacing: '0.02em',
+            transition: 'opacity 0.2s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          View Card
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function useHistory(initial) {
   const [past,    setPast]    = useState([]);
@@ -104,7 +303,12 @@ function SaveIndicator({ status }) {
 export default function Editor() {
   const { templateId } = useParams();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const prefill = location.state?.prefill ?? {};
+
+  const shareData = searchParams.get('data');
+  const isSharedPreview = searchParams.get('mode') === 'preview' && !!shareData;
+  const sharedState = isSharedPreview ? decodeShareData(shareData) : null;
 
   const isFresh = (() => {
     if (location.state?.fresh !== true) return false;
@@ -135,10 +339,14 @@ export default function Editor() {
   })()).current;
 
   const initialState = {
-    sectionsFront: saved?.sectionsFront ?? (selectedTemplate?.sectionsFront ?? []).map(s => ({ ...s })),
-    sectionsBack:  saved?.sectionsBack  ?? (selectedTemplate?.sectionsBack  ?? []).map(s => ({ ...s })),
-    elementsFront: saved?.elementsFront ?? [],
-    elementsBack:  saved?.elementsBack  ?? [],
+    sectionsFront: sharedState?.sectionsFront
+      ?? saved?.sectionsFront
+      ?? (selectedTemplate?.sectionsFront ?? []).map(s => ({ ...s })),
+    sectionsBack: sharedState?.sectionsBack
+      ?? saved?.sectionsBack
+      ?? (selectedTemplate?.sectionsBack  ?? []).map(s => ({ ...s })),
+    elementsFront: sharedState?.elementsFront ?? saved?.elementsFront ?? [],
+    elementsBack:  sharedState?.elementsBack  ?? saved?.elementsBack  ?? [],
   };
 
   const { state, push, silentSet, undo, redo, canUndo, canRedo } = useHistory(initialState);
@@ -175,6 +383,7 @@ export default function Editor() {
   }, [silentSet]);
 
   const [userData, setUserData] = useState(() => {
+    if (sharedState?.userData) return sharedState.userData;
     if (isFresh || !saved?.userData) {
       const base = { ...selectedTemplate?.defaultData, ...prefill };
       if (prefill.name) {
@@ -247,7 +456,14 @@ export default function Editor() {
   const [elementAnchorRect, setElementAnchorRect] = useState(null);
   const [activeCanvas,      setActiveCanvas]      = useState('front');
   const [dragPreview,       setDragPreview]       = useState(null);
-  const [previewMode,       setPreviewMode]       = useState(false);
+  const [previewMode,       setPreviewMode]       = useState(isSharedPreview);
+  const [isFlipped,         setIsFlipped]         = useState(false);
+  const [codeUnlocked,      setCodeUnlocked]      = useState(!isSharedPreview);
+  const [shareUrl,          setShareUrl]          = useState(null);
+  const [shareCode,         setShareCode]         = useState(null);
+  const [shareCopied,       setShareCopied]       = useState(false);
+  const [codeCopied,        setCodeCopied]        = useState(false);
+  const sharePopoverRef = useRef(null);
 
   const clipboardRef = useRef(null);
 
@@ -538,8 +754,12 @@ export default function Editor() {
     setElementAnchorRect({ left, right: left + widthPx, top, bottom: top + heightPx, width: widthPx, height: heightPx });
   }, [allElements, selectedElement, activeCanvas]);
 
-  const [bgFront, setBgFront] = useState(saved?.bgFront ?? selectedTemplate?.bg     ?? '#ffffff');
-  const [bgBack,  setBgBack]  = useState(saved?.bgBack  ?? selectedTemplate?.bgBack ?? '#ffffff');
+  const [bgFront, setBgFront] = useState(
+    sharedState?.bgFront ?? saved?.bgFront ?? selectedTemplate?.bg     ?? '#ffffff'
+  );
+  const [bgBack, setBgBack] = useState(
+    sharedState?.bgBack  ?? saved?.bgBack  ?? selectedTemplate?.bgBack ?? '#ffffff'
+  );
   useEffect(() => { bgFrontRef.current = bgFront; }, [bgFront]);
   useEffect(() => { bgBackRef.current  = bgBack;  }, [bgBack]);
 
@@ -709,19 +929,140 @@ export default function Editor() {
     setSelectedElement(prevSelectedElement);
   }, [selectedSection, selectedElement]);
 
+  // Share popover close on outside click
+  useEffect(() => {
+    if (!shareUrl) return;
+    const handler = (e) => {
+      if (sharePopoverRef.current && !sharePopoverRef.current.contains(e.target)) {
+        setShareUrl(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [shareUrl]);
+
   const handleShare = useCallback(() => {
-    if (navigator.share) {
-      navigator.share({ title: 'My Business Card', text: 'Check out my business card!' })
-        .catch(() => {});
-    } else {
-      navigator.clipboard?.writeText(window.location.href);
-      alert('Link copied to clipboard!');
+    if (shareUrl) { setShareUrl(null); return; }
+    const code = generateCode();
+    setShareCode(code);
+    const encoded = encodeShareData(state, userData, bgFront, bgBack, code);
+    if (!encoded) { alert('Greška pri dijeljenju.'); return; }
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.searchParams.set('mode', 'preview');
+    url.searchParams.set('data', encoded);
+    setShareUrl(url.toString());
+    setShareCopied(false);
+    setCodeCopied(false);
+  }, [state, userData, bgFront, bgBack, shareUrl]);
+
+  const handleCopyShareUrl = useCallback(() => {
+    if (!shareUrl) return;
+    navigator.clipboard?.writeText(shareUrl).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    });
+  }, [shareUrl]);
+
+  const handleCopyCode = useCallback(() => {
+    if (!shareCode) return;
+    navigator.clipboard?.writeText(shareCode).then(() => {
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    });
+  }, [shareCode]);
+
+  const handleCodeUnlock = useCallback((entered) => {
+    if (entered === sharedState?.accessCode) {
+      setCodeUnlocked(true);
+      return true;
     }
-  }, []);
+    return false;
+  }, [sharedState]);
+
+  // Canvas props shared between preview and editor modes
+  const frontCanvasProps = {
+    key: 'front-canvas',
+    ref: canvasFrontRef,
+    elements: elementsFront,
+    selectedElement: previewMode ? null : selectedElement,
+    setSelectedElement: id => { if (previewMode) return; setSelectedElement(id); setSelectedSection(null); setActiveCanvas('front'); },
+    onAddElement: addElementToFront,
+    onUpdateElement: updateElement,
+    onSilentUpdateElement: silentUpdateElement,
+    onSilentUpdateSection: silentUpdateSection,
+    onUpdateSection: updateSection,
+    onMoveElementToOtherCanvas: moveElementToBack,
+    otherCanvasRef: canvasBackRef,
+    onMoveSectionToOtherCanvas: moveSectionToBack,
+    onElementSelect: handleSelectElement,
+    onDragElement: handleDragElement,
+    onDragEnd: handleDragEnd,
+    dragPreview: dragPreview,
+    backgroundColor: bgFront,
+    template: activeTemplate,
+    isBack: false,
+    showPreview: previewMode,
+    selectedSection: previewMode ? null : selectedSection,
+    onSelectSection: handleSelectSection,
+    userData: userData,
+    sections: sectionsFront,
+    isActive: activeCanvas === 'front',
+    onDropElementOutside: deleteElement,
+    onDropSectionOutside: handleDeleteSection,
+  };
+
+  const backCanvasProps = {
+    key: 'back-canvas',
+    ref: canvasBackRef,
+    elements: elementsBack,
+    selectedElement: previewMode ? null : selectedElement,
+    setSelectedElement: id => { if (previewMode) return; setSelectedElement(id); setSelectedSection(null); setActiveCanvas('back'); },
+    onAddElement: addElementToBack,
+    onUpdateElement: updateElement,
+    onSilentUpdateElement: silentUpdateElement,
+    onSilentUpdateSection: silentUpdateSection,
+    onUpdateSection: updateSection,
+    onMoveElementToOtherCanvas: moveElementToFront,
+    otherCanvasRef: canvasFrontRef,
+    onMoveSectionToOtherCanvas: moveSectionToFront,
+    onElementSelect: handleSelectElement,
+    onDragElement: handleDragElement,
+    onDragEnd: handleDragEnd,
+    dragPreview: dragPreview,
+    backgroundColor: bgBack,
+    template: activeTemplate,
+    isBack: true,
+    showPreview: previewMode,
+    selectedSection: previewMode ? null : selectedSection,
+    onSelectSection: handleSelectSection,
+    userData: userData,
+    sections: sectionsBack,
+    isActive: activeCanvas === 'back',
+  };
 
   return (
     <div className={`editor-container${previewMode ? ' preview-mode' : ''}`} ref={editorRef}>
-      {!previewMode && (
+      <style>{`
+        @keyframes cardEntrance {
+          from { opacity: 0; transform: translateY(32px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .preview-card-entrance { animation: cardEntrance 0.55s cubic-bezier(0.22,1,0.36,1) forwards; }
+        .preview-btn-entrance  { animation: fadeInUp 0.4s 0.25s cubic-bezier(0.22,1,0.36,1) both; }
+      `}</style>
+
+      {/* Code gate for shared preview */}
+      {isSharedPreview && !codeUnlocked && (
+        <CodeGate onUnlock={handleCodeUnlock} />
+      )}
+
+      {/* ── EDITOR topbar ── */}
+      {!previewMode && !isSharedPreview && (
         <div className="editor-topbar">
           <button className="topbar-btn topbar-btn--ghost" onClick={() => setPreviewMode(true)} title="Preview">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -730,24 +1071,115 @@ export default function Editor() {
             </svg>
             Preview
           </button>
-          <button className="topbar-btn topbar-btn--primary" onClick={handleShare} title="Share">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-            </svg>
-            Share
-          </button>
+          <div style={{ position: 'relative' }} ref={sharePopoverRef}>
+            <button className="topbar-btn topbar-btn--primary" onClick={handleShare} title="Share">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+              Share
+            </button>
+            {shareUrl && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                background: '#1e293b', border: '1px solid #334155',
+                borderRadius: 12, padding: '16px 18px', zIndex: 9999,
+                display: 'flex', flexDirection: 'column', gap: 14,
+                boxShadow: '0 12px 32px rgba(0,0,0,0.45)', minWidth: 420,
+              }}>
+                {/* URL row */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: '#64748b', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Preview Link
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      readOnly value={shareUrl}
+                      onClick={e => e.target.select()}
+                      style={{
+                        flex: 1, background: '#0f172a', border: '1px solid #334155',
+                        borderRadius: 8, padding: '8px 10px', color: '#94a3b8',
+                        fontSize: 12, fontFamily: 'monospace', outline: 'none',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}
+                    />
+                    <button
+                      onClick={handleCopyShareUrl}
+                      onMouseEnter={e => e.currentTarget.style.background = '#4f46e5'}
+                      onMouseLeave={e => e.currentTarget.style.background = '#6366f1'}
+                      style={{
+                        flexShrink: 0, background: '#6366f1', border: 'none',
+                        borderRadius: 8, padding: '8px 0', color: '#fff',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        transition: 'background 0.2s', width: 90, textAlign: 'center',
+                      }}
+                    >
+                      {shareCopied ? '✓ Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div style={{ borderTop: '1px solid #1e3a5f' }} />
+
+                {/* Code row */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: '#64748b', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Access Code
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      flex: 1, background: '#0f172a', border: '1px solid #334155',
+                      borderRadius: 8, padding: '8px 14px',
+                      display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6,
+                    }}>
+                      {shareCode && shareCode.split('').map((char, i) => (
+                        <span key={i} style={{
+                          display: 'inline-block', width: 28, height: 36,
+                          lineHeight: '36px', textAlign: 'center',
+                          background: '#1e293b', borderRadius: 6,
+                          color: '#a5b4fc', fontSize: 18, fontWeight: 800,
+                          fontFamily: 'monospace', letterSpacing: 0,
+                          border: '1px solid #334155',
+                        }}>
+                          {char}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleCopyCode}
+                      onMouseEnter={e => e.currentTarget.style.background = '#4f46e5'}
+                      onMouseLeave={e => e.currentTarget.style.background = '#6366f1'}
+                      style={{
+                        flexShrink: 0, background: '#6366f1', border: 'none',
+                        borderRadius: 8, padding: '8px 0', color: '#fff',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        transition: 'background 0.2s', width: 90, textAlign: 'center',
+                      }}
+                    >
+                      {codeCopied ? '✓ Copied' : 'Copy'}
+                    </button>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11, color: '#475569', lineHeight: 1.4 }}>
+                    Share this code alongside the link. Recipients must enter it to view your card.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {previewMode && (
+      {/* ── EDITOR preview bar ── */}
+      {previewMode && !isSharedPreview && (
         <div className="preview-bar">
           <span className="preview-bar-label">Preview Mode</span>
           <button className="preview-bar-exit" onClick={() => setPreviewMode(false)}>✕ Exit Preview</button>
         </div>
       )}
 
+      {/* ── SIDEBAR ── */}
       {!previewMode && (
         <Sidebar
           elements={allElements}
@@ -773,112 +1205,144 @@ export default function Editor() {
         />
       )}
 
-      <div className={`canvas-area${(selectedSection || selectedElement) && !previewMode ? ' canvas-area--shift' : ''}`}>
-        <div
-          className={`canvas-side ${activeCanvas === 'front' ? 'canvas-side--active' : ''}`}
-          onClick={() => !previewMode && setActiveCanvas('front')}
-        >
-          {!previewMode && (
-            <p className="canvas-label">
-              Front Side
-              {activeCanvas === 'front' && <span className="canvas-active-badge">● Active</span>}
-            </p>
-          )}
-          <Canvas
-            key="front-canvas"
-            ref={canvasFrontRef}
-            elements={elementsFront}
-            selectedElement={previewMode ? null : selectedElement}
-            setSelectedElement={id => { if (previewMode) return; setSelectedElement(id); setSelectedSection(null); setActiveCanvas('front'); }}
-            onAddElement={addElementToFront}
-            onUpdateElement={updateElement}
-            onSilentUpdateElement={silentUpdateElement}
-            onSilentUpdateSection={silentUpdateSection}
-            onUpdateSection={updateSection}
-            onMoveElementToOtherCanvas={moveElementToBack}
-            otherCanvasRef={canvasBackRef}
-            onMoveSectionToOtherCanvas={moveSectionToBack}
-            onElementSelect={handleSelectElement}
-            onDragElement={handleDragElement}
-            onDragEnd={handleDragEnd}
-            dragPreview={dragPreview}
-            backgroundColor={bgFront}
-            template={activeTemplate}
-            isBack={false}
-            showPreview={previewMode}
-            selectedSection={previewMode ? null : selectedSection}
-            onSelectSection={handleSelectSection}
-            userData={userData}
-            sections={sectionsFront}
-            isActive={activeCanvas === 'front'}
-            onDropElementOutside={deleteElement}
-            onDropSectionOutside={handleDeleteSection}
-          />
-        </div>
+      {/* ── PREVIEW MODE: flip card ── */}
+      {previewMode && codeUnlocked && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'linear-gradient(135deg, #0f172a 0%, #1a1a2e 100%)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: 32, zIndex: 1,
+          paddingTop: isSharedPreview ? 0 : 48,
+        }}>
+          {/* Flip card container */}
+          <div className="preview-card-entrance" style={{ perspective: '1400px' }}>
+            <div style={{
+              position: 'relative',
+              width: 'min(580px, 90vw)',
+              aspectRatio: '580/330',
+              transformStyle: 'preserve-3d',
+              transition: 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
+              transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+              borderRadius: 16,
+              boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+            }}>
+              {/* FRONT face */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                borderRadius: 16, overflow: 'hidden',
+              }}>
+                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                  <Canvas {...frontCanvasProps} />
+                  <PreviewHotspots sections={sectionsFront} userData={userData} />
+                </div>
+              </div>
 
-        <div
-          className={`canvas-side ${activeCanvas === 'back' ? 'canvas-side--active' : ''}`}
-          onClick={() => !previewMode && setActiveCanvas('back')}
-        >
-          {!previewMode && (
-            <p className="canvas-label">
-              Back Side
-              {activeCanvas === 'back' && <span className="canvas-active-badge">● Active</span>}
-            </p>
-          )}
-          <Canvas
-            key="back-canvas"
-            ref={canvasBackRef}
-            elements={elementsBack}
-            selectedElement={previewMode ? null : selectedElement}
-            setSelectedElement={id => { if (previewMode) return; setSelectedElement(id); setSelectedSection(null); setActiveCanvas('back'); }}
-            onAddElement={addElementToBack}
-            onUpdateElement={updateElement}
-            onSilentUpdateElement={silentUpdateElement}
-            onSilentUpdateSection={silentUpdateSection}
-            onUpdateSection={updateSection}
-            onMoveElementToOtherCanvas={moveElementToFront}
-            otherCanvasRef={canvasFrontRef}
-            onMoveSectionToOtherCanvas={moveSectionToFront}
-            onElementSelect={handleSelectElement}
-            onDragElement={handleDragElement}
-            onDragEnd={handleDragEnd}
-            dragPreview={dragPreview}
-            backgroundColor={bgBack}
-            template={activeTemplate}
-            isBack={true}
-            showPreview={previewMode}
-            selectedSection={previewMode ? null : selectedSection}
-            onSelectSection={handleSelectSection}
-            userData={userData}
-            sections={sectionsBack}
-            isActive={activeCanvas === 'back'}
-          />
-        </div>
-      </div>
+              {/* BACK face */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                transform: 'rotateY(180deg)',
+                borderRadius: 16, overflow: 'hidden',
+              }}>
+                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                  <Canvas {...backCanvasProps} />
+                  <PreviewHotspots sections={sectionsBack} userData={userData} />
+                </div>
+              </div>
+            </div>
+          </div>
 
-      {!previewMode && (selectedSection || selectedElement) && (
-        <FloatingEditor
-          selectedSection={selectedSection}
-          selectedElement={allElements.find(el => el.id === selectedElement) || null}
-          anchorRect={selectedSection ? sectionAnchorRect : elementAnchorRect}
-          userData={userData}
-          onUpdateUserData={updateUserData}
-          onUpdateSection={updateSection}
-          onUpdateElement={updateElement}
-          onReorderSection={handleReorderSection}
-          onClose={() => {
-            setSelectedSection(null);
-            setSectionAnchorRect(null);
-            setSelectedElement(null);
-            setElementAnchorRect(null);
-          }}
-          onLogoUpload={handleLogoUpload}
-          onDeleteSection={handleDeleteSection}
-          onDeleteElement={deleteElement}
-          onDuplicateElement={duplicateElement}
-          onDuplicateSection={duplicateSection}
-        />
+          {/* Flip button */}
+          <button
+            className="preview-btn-entrance"
+            onClick={() => setIsFlipped(f => !f)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 40, padding: '10px 22px',
+              color: '#cbd5e1', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', backdropFilter: 'blur(8px)',
+              transition: 'background 0.2s, border 0.2s, color 0.2s',
+              letterSpacing: '0.01em',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(99,102,241,0.2)';
+              e.currentTarget.style.border = '1px solid rgba(99,102,241,0.5)';
+              e.currentTarget.style.color = '#a5b4fc';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+              e.currentTarget.style.border = '1px solid rgba(255,255,255,0.12)';
+              e.currentTarget.style.color = '#cbd5e1';
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transition: 'transform 0.6s', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+            {isFlipped ? 'View Front' : 'View Back'}
+          </button>
+        </div>
+      )}
+
+      {/* ── EDITOR MODE: normal canvas area ── */}
+      {!previewMode && (
+        <>
+          <div className={`canvas-area${(selectedSection || selectedElement) ? ' canvas-area--shift' : ''}`}>
+            <div
+              className={`canvas-side ${activeCanvas === 'front' ? 'canvas-side--active' : ''}`}
+              onClick={() => setActiveCanvas('front')}
+            >
+              <p className="canvas-label">
+                Front Side
+                {activeCanvas === 'front' && <span className="canvas-active-badge">● Active</span>}
+              </p>
+              <Canvas {...frontCanvasProps} />
+            </div>
+
+            <div
+              className={`canvas-side ${activeCanvas === 'back' ? 'canvas-side--active' : ''}`}
+              onClick={() => setActiveCanvas('back')}
+            >
+              <p className="canvas-label">
+                Back Side
+                {activeCanvas === 'back' && <span className="canvas-active-badge">● Active</span>}
+              </p>
+              <Canvas {...backCanvasProps} />
+            </div>
+          </div>
+
+          {(selectedSection || selectedElement) && (
+            <FloatingEditor
+              selectedSection={selectedSection}
+              selectedElement={allElements.find(el => el.id === selectedElement) || null}
+              anchorRect={selectedSection ? sectionAnchorRect : elementAnchorRect}
+              userData={userData}
+              onUpdateUserData={updateUserData}
+              onUpdateSection={updateSection}
+              onUpdateElement={updateElement}
+              onReorderSection={handleReorderSection}
+              onClose={() => {
+                setSelectedSection(null);
+                setSectionAnchorRect(null);
+                setSelectedElement(null);
+                setElementAnchorRect(null);
+              }}
+              onLogoUpload={handleLogoUpload}
+              onDeleteSection={handleDeleteSection}
+              onDeleteElement={deleteElement}
+              onDuplicateElement={duplicateElement}
+              onDuplicateSection={duplicateSection}
+              onSilentUpdateSection={silentUpdateSection}
+            />
+          )}
+        </>
       )}
     </div>
   );
