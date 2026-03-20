@@ -87,13 +87,25 @@ function loadFromStorage(key) {
   }
 }
 
+function SaveIndicator({ status }) {
+  const map = {
+    saved:   { color: '#4ade80', label: '✓ Saved' },
+    unsaved: { color: '#f59e0b', label: '● Unsaved' },
+    saving:  { color: '#94a3b8', label: '… Saving' },
+  };
+  const { color, label } = map[status] || map.unsaved;
+  return (
+    <span style={{ fontSize: 11, color, fontWeight: 500, letterSpacing: '0.02em' }}>
+      {label}
+    </span>
+  );
+}
+
 export default function Editor() {
   const { templateId } = useParams();
   const location = useLocation();
   const prefill = location.state?.prefill ?? {};
 
-  // isFresh je true samo kad korisnik dolazi PRVI PUT iz forme —
-  // sessionStorage flag se briše odmah, pa refresh više ne triggeruje fresh.
   const isFresh = (() => {
     if (location.state?.fresh !== true) return false;
     const key = `editor_is_new_${templateId || 'blank'}`;
@@ -697,8 +709,37 @@ export default function Editor() {
     setSelectedElement(prevSelectedElement);
   }, [selectedSection, selectedElement]);
 
+  const handleShare = useCallback(() => {
+    if (navigator.share) {
+      navigator.share({ title: 'My Business Card', text: 'Check out my business card!' })
+        .catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(window.location.href);
+      alert('Link copied to clipboard!');
+    }
+  }, []);
+
   return (
     <div className={`editor-container${previewMode ? ' preview-mode' : ''}`} ref={editorRef}>
+      {!previewMode && (
+        <div className="editor-topbar">
+          <button className="topbar-btn topbar-btn--ghost" onClick={() => setPreviewMode(true)} title="Preview">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            Preview
+          </button>
+          <button className="topbar-btn topbar-btn--primary" onClick={handleShare} title="Share">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            Share
+          </button>
+        </div>
+      )}
 
       {previewMode && (
         <div className="preview-bar">
@@ -727,9 +768,7 @@ export default function Editor() {
           onChangeBgFront={setBgFront}
           onChangeBgBack={setBgBack}
           onDownloadImages={downloadCanvasImages}
-          onSave={saveNow}
           saveStatus={saveStatus}
-          onPreview={() => setPreviewMode(true)}
           onDuplicateElement={duplicateElement}
         />
       )}

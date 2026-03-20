@@ -5,7 +5,7 @@
   background: rgba(255, 255, 255, 0.1);
   display: flex;
   backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(20, 20, 20, 0.95);
+
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
@@ -13,29 +13,29 @@
   top: 0;
 }
 
+.sidebar, .sidebar * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar::-webkit-scrollbar,
 .sidebar *::-webkit-scrollbar {
-  width: 4px;
-}
-.sidebar *::-webkit-scrollbar-track {
-  background: transparent;
-}
-.sidebar *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
-}
-.sidebar *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  display: none;
 }
 
 .sb-header {
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 20px 20px;
+
   flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(15, 15, 25, 0.95);
+  background: rgba(15, 15, 20, 0.92);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .sb-title {
@@ -46,37 +46,33 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* ─── Undo / Redo row ───────────────────────── */
-.sb-undo-row {
+/* ─── Header icon actions (undo/redo) ──────── */
+.sb-header-actions {
   display: flex;
-  gap: 8px;
-  padding: 12px 14px 10px;
-  flex-shrink: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  align-items: center;
+  gap: 4px;
 }
 
-.sb-undo-btn {
-  flex: 1;
+.sb-icon-action {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  transition: color 0.15s, opacity 0.15s;
 }
 
-.sb-undo-btn:hover:not(.disabled) {
-  background: rgba(255, 255, 255, 0.12);
+.sb-icon-action:hover:not(.disabled) {
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.sb-undo-btn.disabled {
-  opacity: 0.35;
+.sb-icon-action.disabled {
+  opacity: 0.2;
   cursor: not-allowed;
 }
 
@@ -136,7 +132,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.5);
   margin: 8px 0 4px;
 }
 
@@ -241,12 +237,12 @@
 
 .sb-search-clear {
   position: absolute;
-  right: 20px;
+  right: 24px;
   top: 50%;
-  transform: translateY(-20%);
+  transform: translateY(-50%);
   background: none;
   border: none;
-  font-size: 18px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
   line-height: 1;
@@ -304,7 +300,7 @@
 .sb-icons-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
   padding: 4px 16px 8px;
   overflow-y: auto;
   min-height: 220px;
@@ -317,23 +313,23 @@
   justify-content: center;
   gap: 6px;
   padding: 12px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
   font-size: 10px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.35);
   transition: all 0.2s;
   min-height: 64px;
 }
 
 .sb-icon-btn:hover {
-  border-color: #6366f1;
-  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.1);
   color: #a5b4fc;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
 .sb-icon-btn:active {

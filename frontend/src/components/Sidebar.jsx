@@ -18,7 +18,7 @@ import {
   Globe, Link, Share2, Download, Upload, Send,
   Flower2, Leaf, Feather, Moon, Sun, Cloud,
   CloudRain, Snowflake, Wind, Waves, Mountain, Trees,
-  Copy, Eye, Save,
+  Copy,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -123,20 +123,6 @@ function svgFromButton(buttonEl, color) {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
 }
 
-function QRIcon({ size = 15, color = 'currentColor' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="5" y="5" width="3" height="3" fill={color} stroke="none" />
-      <rect x="16" y="5" width="3" height="3" fill={color} stroke="none" />
-      <rect x="5" y="16" width="3" height="3" fill={color} stroke="none" />
-      <path d="M14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" fill={color} stroke="none" />
-    </svg>
-  );
-}
-
 function SaveIndicator({ status }) {
   const map = {
     saved:   { color: '#4ade80', label: '✓ Saved' },
@@ -151,7 +137,21 @@ function SaveIndicator({ status }) {
   );
 }
 
-export default function Sidebar({ 
+function QRIcon({ size = 15, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="5" y="5" width="3" height="3" fill={color} stroke="none" />
+      <rect x="16" y="5" width="3" height="3" fill={color} stroke="none" />
+      <rect x="5" y="16" width="3" height="3" fill={color} stroke="none" />
+      <path d="M14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" fill={color} stroke="none" />
+    </svg>
+  );
+}
+
+export default function Sidebar({
   elements,
   selectedElement,
   activeCanvas,
@@ -170,9 +170,7 @@ export default function Sidebar({
   onChangeBgFront,
   onChangeBgBack,
   onDownloadImages,
-  onSave,
   saveStatus,
-  onPreview,
   onDuplicateElement,
 }) {
   const fileRef = useRef(null);
@@ -182,13 +180,11 @@ export default function Sidebar({
   const [qrLoading, setQrLoading] = useState(false);
 
   const handleIconDragStart = (e) => {
-    // ── FIX: boja se ugrađuje u SVG, ne šalje se kao poseban data transfer ──
     const dataUrl = svgFromButton(e.currentTarget, iconColor);
     if (!dataUrl) { e.preventDefault(); return; }
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/x-icon-svg', dataUrl);
     e.dataTransfer.setData('text/plain', dataUrl);
-    // color se više ne šalje — boja je već u SVG-u
   };
 
   const addIcon = (e) => {
@@ -196,7 +192,6 @@ export default function Sidebar({
     if (!dataUrl) return;
     const img = new window.Image();
     img.onload = () => {
-      // 80x80 umjesto 60x60 — ikona vizualno bolje popunjava bounding box
       const W = 80; const H = 80;
       const offsetX = Math.floor(Math.random() * 40);
       const offsetY = Math.floor(Math.random() * 40);
@@ -250,24 +245,15 @@ export default function Sidebar({
       <div className="sb-header">
         <span className="sb-title">Sidebar</span>
         <SaveIndicator status={saveStatus || 'saved'} />
-      </div>
-
-      {/* ── Actions row: Undo/Redo + Save + Preview ── */}
-      <div className="sb-undo-row">
-        <button className={`sb-undo-btn ${!canUndo ? 'disabled' : ''}`} onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
-          <Undo2 size={15} /> Undo
-        </button>
-        <button className={`sb-undo-btn ${!canRedo ? 'disabled' : ''}`} onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">
-          <Redo2 size={15} /> Redo
-        </button>
-      </div>
-      <div className="sb-undo-row" style={{ marginTop: 4 }}>
-        <button className="sb-undo-btn" onClick={onSave} title="Save (Ctrl+S)" style={{ color: '#4ade80' }}>
-          <Save size={15} /> Save
-        </button>
-        <button className="sb-undo-btn" onClick={onPreview} title="Preview mode">
-          <Eye size={15} /> Preview
-        </button>
+        {/* ── Icon-only undo/redo ── */}
+        <div className="sb-header-actions">
+          <button className={`sb-icon-action ${!canUndo ? 'disabled' : ''}`} onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
+            <Undo2 size={15} />
+          </button>
+          <button className={`sb-icon-action ${!canRedo ? 'disabled' : ''}`} onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">
+            <Redo2 size={15} />
+          </button>
+        </div>
       </div>
 
       {/* ── Duplicate selected element ── */}
@@ -276,7 +262,7 @@ export default function Sidebar({
           <button
             className="sb-upload-btn"
             onClick={() => onDuplicateElement && onDuplicateElement(selectedElement)}
-            title="Duplicate selected element (Ctrl+D)"
+            title="Duplicate selected element"
             style={{ width: '100%', justifyContent: 'center', gap: 6, background: 'rgba(99,102,241,0.15)', borderColor: 'rgba(99,102,241,0.4)' }}
           >
             <Copy size={14} /> Duplicate Element
@@ -284,14 +270,9 @@ export default function Sidebar({
         </div>
       )}
 
-      <div className="sb-canvas-toggle">
-        <button className={`sb-canvas-btn ${activeCanvas === 'front' ? 'active' : ''}`} onClick={() => onSetActiveCanvas('front')}>Front</button>
-        <button className={`sb-canvas-btn ${activeCanvas === 'back'  ? 'active' : ''}`} onClick={() => onSetActiveCanvas('back')}>Back</button>
-      </div>
 
-      <div className="sb-divider" style={{ margin: '8px 14px' }} />
-      <div className="sb-upload-section">
-        <p className="sb-section-title" style={{ padding: '0 16px' }}>Background</p>
+      <div className="sb-upload-section" style={{ paddingTop: 12 }}>
+        <p className="sb-section-title" style={{ padding: '0 16px', color: 'rgba(255,255,255,0.5)' }}>Background</p>
         <div className="sb-bg-row">
           <label className={`sb-bg-swatch-label ${activeCanvas === 'front' ? 'sb-bg-swatch-label--active' : ''}`} title="Front background color">
             <span className="sb-swatch-label">Front</span>
@@ -307,6 +288,7 @@ export default function Sidebar({
           </label>
         </div>
       </div>
+
       <div className="sb-divider" style={{ margin: '8px 14px' }} />
 
       <div className="sb-search-wrap">
@@ -394,7 +376,8 @@ export default function Sidebar({
       <div className="sb-divider" style={{ margin: '8px 14px' }} />
 
       <div className="sb-upload-section">
-        <button className="sb-upload-btn" onClick={onDownloadImages} style={{ margin: '0 0 8px' }}>
+        <p className="sb-section-title" style={{ padding: '0 16px' }}>Download</p>
+        <button className="sb-upload-btn" onClick={onDownloadImages}>
           <Download size={15} />
           Download Images
         </button>
