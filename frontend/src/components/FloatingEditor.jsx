@@ -1,6 +1,6 @@
 import { FONT_OPTIONS } from '../sectionSchema';
 import '../css/FloatingEditor.css';
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 
 export default function FloatingEditor({
   selectedSection,
@@ -21,16 +21,28 @@ export default function FloatingEditor({
   if ((!selectedSection && !selectedElement) || !anchorRect) return null;
 
   const panelRef = useRef(null);
+  const colorPickerActiveRef = useRef(false);
 
   useEffect(() => {
-  const handleClickOutside = (e) => {
-    if (panelRef.current && !panelRef.current.contains(e.target)) {
-      onClose();
-    }
-  };
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => document.removeEventListener('mousedown', handleClickOutside);
-}, [onClose]);
+    const handleClickOutside = (e) => {
+      // Don't close if a color picker is open — the picker popup is outside the DOM
+      if (colorPickerActiveRef.current) return;
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  // Track when a color input is focused/blurred so we don't close on picker interaction
+  const colorInputProps = (value, onChange) => ({
+    type: 'color',
+    value,
+    onFocus:  () => { colorPickerActiveRef.current = true; },
+    onBlur:   () => { colorPickerActiveRef.current = false; },
+    onChange: (e) => { colorPickerActiveRef.current = true; onChange(e.target.value); },
+  });
 
   const PANEL_H = 620;
   const vh = window.innerHeight;
@@ -174,11 +186,7 @@ export default function FloatingEditor({
         </div>
         <div className="fe-header-actions">
           {canDuplicate && (
-            <button
-              className="fe-duplicate"
-              title="Duplicate"
-              onClick={handleDuplicate}
-            >
+            <button className="fe-duplicate" title="Duplicate" onClick={handleDuplicate}>
               ⧉ Duplicate
             </button>
           )}
@@ -246,23 +254,23 @@ export default function FloatingEditor({
               </div>
               <div className="fe-group">
                 <label className="fe-label">Color</label>
-                <input type="color" value={el.color||'#000000'} onChange={e => onUpdateElement(el.id, { color: e.target.value })} />
+                <input {...colorInputProps(el.color||'#000000', v => onUpdateElement(el.id, { color: v }))} />
               </div>
             </div>
             <div className="fe-group">
               <label className="fe-label">Style</label>
               <div className="fe-toolbar">
-                <button className={`fe-tool-btn ${el.fontWeight==='bold'?'active':''}`}    onClick={() => onUpdateElement(el.id,{fontWeight: el.fontWeight==='bold'?'normal':'bold'})}><strong>B</strong></button>
-                <button className={`fe-tool-btn ${el.fontStyle==='italic'?'active':''}`}   onClick={() => onUpdateElement(el.id,{fontStyle: el.fontStyle==='italic'?'normal':'italic'})}><em>I</em></button>
-                <button className={`fe-tool-btn ${el.textDecoration==='underline'?'active':''}`} onClick={() => onUpdateElement(el.id,{textDecoration: el.textDecoration==='underline'?'none':'underline'})}><u>U</u></button>
+                <button className={`fe-tool-btn ${el.fontWeight==='bold'?'active':''}`}              onClick={() => onUpdateElement(el.id,{fontWeight: el.fontWeight==='bold'?'normal':'bold'})}><strong>B</strong></button>
+                <button className={`fe-tool-btn ${el.fontStyle==='italic'?'active':''}`}             onClick={() => onUpdateElement(el.id,{fontStyle: el.fontStyle==='italic'?'normal':'italic'})}><em>I</em></button>
+                <button className={`fe-tool-btn ${el.textDecoration==='underline'?'active':''}`}     onClick={() => onUpdateElement(el.id,{textDecoration: el.textDecoration==='underline'?'none':'underline'})}><u>U</u></button>
               </div>
             </div>
             <div className="fe-group">
               <label className="fe-label">Align</label>
               <div className="fe-toolbar">
-                <button className={`fe-tool-btn ${(el.textAlign||'left')==='left'?'active':''}`}   onClick={() => onUpdateElement(el.id,{textAlign:'left'})}>⬅</button>
-                <button className={`fe-tool-btn ${el.textAlign==='center'?'active':''}`}           onClick={() => onUpdateElement(el.id,{textAlign:'center'})}>↔</button>
-                <button className={`fe-tool-btn ${el.textAlign==='right'?'active':''}`}            onClick={() => onUpdateElement(el.id,{textAlign:'right'})}>➡</button>
+                <button className={`fe-tool-btn ${(el.textAlign||'left')==='left'?'active':''}`}    onClick={() => onUpdateElement(el.id,{textAlign:'left'})}>⬅</button>
+                <button className={`fe-tool-btn ${el.textAlign==='center'?'active':''}`}            onClick={() => onUpdateElement(el.id,{textAlign:'center'})}>↔</button>
+                <button className={`fe-tool-btn ${el.textAlign==='right'?'active':''}`}             onClick={() => onUpdateElement(el.id,{textAlign:'right'})}>➡</button>
               </div>
             </div>
             <Divider />
@@ -274,7 +282,7 @@ export default function FloatingEditor({
           <>
             <div className="fe-group">
               <label className="fe-label">Color</label>
-              <input type="color" value={el.color||'#000000'} onChange={e => onUpdateElement(el.id,{color:e.target.value})} />
+              <input {...colorInputProps(el.color||'#000000', v => onUpdateElement(el.id, { color: v }))} />
             </div>
             <Divider />
             <SizeRow el={el} />
@@ -315,12 +323,12 @@ export default function FloatingEditor({
           <>
             <div className="fe-group">
               <label className="fe-label">Fill</label>
-              <input type="color" value={el.fill||'#3b82f6'} onChange={e => onUpdateElement(el.id,{fill:e.target.value})} />
+              <input {...colorInputProps(el.fill||'#3b82f6', v => onUpdateElement(el.id, { fill: v }))} />
             </div>
             <div className="fe-row">
               <div className="fe-group">
                 <label className="fe-label">Stroke</label>
-                <input type="color" value={el.stroke||'#000000'} onChange={e => onUpdateElement(el.id,{stroke:e.target.value})} />
+                <input {...colorInputProps(el.stroke||'#000000', v => onUpdateElement(el.id, { stroke: v }))} />
               </div>
               <div className="fe-group">
                 <label className="fe-label">Stroke W</label>
@@ -364,10 +372,6 @@ export default function FloatingEditor({
                 <span>{Math.round((selectedSection.height||0.5)*100)}</span>
                 <button onClick={() => onUpdateSection(selectedSection.id,{height:normalize((selectedSection.height||0.5)+0.05)})}>+</button>
               </div>
-            </div>
-            <div className="fe-group">
-              <label className="fe-label">Overlay Color</label>
-              <input type="color" value={selectedSection.color||'#000000'} onChange={e => onUpdateSection(selectedSection.id,{color:e.target.value})} />
             </div>
             <div className="fe-group">
               <label className="fe-label">Upload Logo</label>
@@ -425,7 +429,7 @@ export default function FloatingEditor({
               </div>
               <div className="fe-group">
                 <label className="fe-label">Color</label>
-                <input type="color" value={selectedSection.color||'#000000'} onChange={e => onUpdateSection(selectedSection.id,{color:e.target.value})} />
+                <input {...colorInputProps(selectedSection.color||'#000000', v => onUpdateSection(selectedSection.id, { color: v }))} />
               </div>
             </div>
             <Divider />
@@ -457,7 +461,7 @@ export default function FloatingEditor({
                     <button onClick={() => onUpdateSection(selectedSection.id,{textShadowBlur:(selectedSection.textShadowBlur||0)+1})}>+</button>
                   </div>
                 </div>
-                <input type="color" value={selectedSection.textShadowColor||'#000000'} onChange={e => onUpdateSection(selectedSection.id,{textShadowColor:e.target.value})} />
+                <input {...colorInputProps(selectedSection.textShadowColor||'#000000', v => onUpdateSection(selectedSection.id, { textShadowColor: v }))} />
               </div>
             </div>
             <div className="fe-group">
@@ -470,7 +474,7 @@ export default function FloatingEditor({
                     <button onClick={() => onUpdateSection(selectedSection.id,{textStrokeWidth:Math.min(10,(selectedSection.textStrokeWidth||0)+0.5)})}>+</button>
                   </div>
                 </div>
-                <input type="color" value={selectedSection.textStrokeColor||'#000000'} onChange={e => onUpdateSection(selectedSection.id,{textStrokeColor:e.target.value})} />
+                <input {...colorInputProps(selectedSection.textStrokeColor||'#000000', v => onUpdateSection(selectedSection.id, { textStrokeColor: v }))} />
               </div>
             </div>
             <LayerControls id={selectedSection.id} />
