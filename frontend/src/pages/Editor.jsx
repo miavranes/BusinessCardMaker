@@ -268,6 +268,14 @@ function serializeElements(elements) {
   return elements.map(el => { const { imgElement, ...rest } = el; return rest; });
 }
 
+function rehydrateElements(elements) {
+  if (!elements) return [];
+  return elements.map(el => {
+    if (el.type !== 'image' || !el.src) return el;
+    return { ...el, imgElement: null };
+  });
+}
+
 function saveToStorage(key, data) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
@@ -345,8 +353,8 @@ export default function Editor() {
     sectionsBack: sharedState?.sectionsBack
       ?? saved?.sectionsBack
       ?? (selectedTemplate?.sectionsBack  ?? []).map(s => ({ ...s })),
-    elementsFront: sharedState?.elementsFront ?? saved?.elementsFront ?? [],
-    elementsBack:  sharedState?.elementsBack  ?? saved?.elementsBack  ?? [],
+    elementsFront: rehydrateElements(sharedState?.elementsFront ?? saved?.elementsFront ?? []),
+    elementsBack:  rehydrateElements(sharedState?.elementsBack  ?? saved?.elementsBack  ?? []),
   };
 
   const { state, push, silentSet, undo, redo, canUndo, canRedo } = useHistory(initialState);
@@ -430,6 +438,24 @@ export default function Editor() {
     const id = setInterval(saveNow, AUTOSAVE_INTERVAL);
     return () => clearInterval(id);
   }, [saveNow]);
+
+  // ── Rehydrate imgElements after mount ──
+  useEffect(() => {
+    const allEls = [...initialState.elementsFront, ...initialState.elementsBack];
+    allEls.forEach(el => {
+      if (el.type !== 'image' || !el.src) return;
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => silentUpdateElement(el.id, { imgElement: img });
+      img.onerror = () => {
+        const img2 = new window.Image();
+        img2.onload = () => silentUpdateElement(el.id, { imgElement: img2 });
+        img2.src = el.src;
+      };
+      img.src = el.src;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateSection = (sectionId, updates) => {
     const isFront = sectionsFront.some(s => s.id === sectionId);
@@ -1209,7 +1235,7 @@ export default function Editor() {
       {previewMode && codeUnlocked && (
         <div style={{
           position: 'fixed', inset: 0,
-          background: 'linear-gradient(135deg, #000000 0%, #0a0a0a 100%)',
+          background: '#000000',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           gap: 32, zIndex: 1,
@@ -1224,7 +1250,7 @@ export default function Editor() {
               transformStyle: 'preserve-3d',
               transition: 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
               transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-              borderRadius: 16,
+              borderRadius: 24,
               boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
             }}>
               {/* FRONT face */}

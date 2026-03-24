@@ -210,9 +210,11 @@ export default function Sidebar({
   };
 
   const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
     const img = new window.Image();
     img.onload = () => {
       const maxW = 180;
@@ -222,12 +224,14 @@ export default function Sidebar({
         id: `image-${Date.now()}`,
         type: 'image', x: 40, y: 40,
         width: w, height: w * ratio,
-        imgElement: img, src: url, opacity: 1,
+        imgElement: img, src: dataUrl, opacity: 1,
       });
     };
-    img.src = url;
-    e.target.value = '';
+    img.src = dataUrl;
   };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+};
 
   const handleAddQRCode = async () => {
     if (!onAddQRCode || qrLoading) return;
