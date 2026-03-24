@@ -23,13 +23,14 @@ export default function FloatingEditor({
   const panelRef = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (e.target.closest('.canvas-side') || e.target.closest('.canvas-area')) return;
-      if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+  const handleClickOutside = (e) => {
+    if (panelRef.current && !panelRef.current.contains(e.target)) {
+      onClose();
+    }
+  };
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+}, [onClose]);
 
   const PANEL_H = 620;
   const vh = window.innerHeight;

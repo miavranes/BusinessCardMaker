@@ -1209,7 +1209,7 @@ export default function Editor() {
       {previewMode && codeUnlocked && (
         <div style={{
           position: 'fixed', inset: 0,
-          background: 'linear-gradient(135deg, #0f172a 0%, #1a1a2e 100%)',
+          background: 'linear-gradient(135deg, #000000 0%, #0a0a0a 100%)',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           gap: 32, zIndex: 1,
@@ -1232,7 +1232,7 @@ export default function Editor() {
                 position: 'absolute', inset: 0,
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                borderRadius: 16, overflow: 'hidden',
+                borderRadius: 24, overflow: 'hidden',
               }}>
                 <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                   <Canvas {...frontCanvasProps} />
@@ -1246,7 +1246,7 @@ export default function Editor() {
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
                 transform: 'rotateY(180deg)',
-                borderRadius: 16, overflow: 'hidden',
+                borderRadius: 24, overflow: 'hidden',
               }}>
                 <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                   <Canvas {...backCanvasProps} />
