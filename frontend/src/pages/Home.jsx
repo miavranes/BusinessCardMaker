@@ -135,7 +135,7 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
           <div className="step">
             <div className="step-num">03</div>
             <h3>Export</h3>
-            <p>Download your card as PNG, JPG, or PDF ready for print.</p>
+            <p>Download your card as PNG ready for print.</p>
           </div>
         </div>
       </section>
@@ -182,7 +182,7 @@ export default function Home({ onStartEditor, onLoadTemplate }) {
           </div>
           <div className="feature">
             <h3>High-Resolution Export</h3>
-            <p>PNG, JPG, or PDF — ready for print with professional quality.</p>
+            <p>PNG — ready for print with professional quality.</p>
           </div>
           <div className="feature">
             <h3>Animations</h3>
