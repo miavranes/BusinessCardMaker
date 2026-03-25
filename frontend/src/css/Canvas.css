@@ -38,28 +38,33 @@
 @media (max-width: 768px) {
   .canvas-wrapper {
     width: 100%;
-    max-width: 420px;
+    max-width: 400px;
   }
 }
 
 @media (max-width: 480px) {
   .canvas-container {
     align-items: flex-start;
-    padding: 0;
+    padding: 8px 0;
   }
 
   .canvas-wrapper {
-    width: 100vw;
     max-width: 100%;
-    aspect-ratio: 580 / 330;
-    box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.3);
-    border-radius: 0;
+    width: calc(100vw - 24px);
+    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+  }
+
+  .canvas-element.draggable {
+    cursor: default; 
+    touch-action: none; 
   }
 }
 
 @media (max-width: 360px) {
   .canvas-wrapper {
     width: 100vw;
-    max-width: 100%;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
