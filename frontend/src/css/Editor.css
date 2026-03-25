@@ -25,10 +25,9 @@
   transition: padding 0.3s, justify-content 0.3s;
 }
 
-/* when the floating editor is open we nudge the canvases left to make room */
 .canvas-area.canvas-area--shift {
   justify-content: flex-start;
-  padding: 32px 120px 32px 32px; /* extra right padding for panel */
+  padding: 32px 120px 32px 32px;
 }
 
 .canvas-side {
@@ -50,7 +49,6 @@
 
 /* ─── RESPONSIVE ─────────────────────────── */
 
-/* Tablet (1024px and below) */
 @media (max-width: 1024px) {
   .canvas-area {
     flex-direction: column;
@@ -64,7 +62,6 @@
   }
 }
 
-/* Mobile (768px and below) */
 @media (max-width: 768px) {
   .editor-container {
     flex-direction: column;
@@ -80,8 +77,13 @@
   }
 
   .canvas-area {
-    padding: 16px;
+    padding: 60px 16px 16px; /* top padding zbog topbar-a */
     gap: 20px;
+  }
+
+  .canvas-area.canvas-area--shift {
+    padding: 60px 16px 16px;
+    justify-content: center;
   }
 
   .canvas-side {
@@ -94,19 +96,23 @@
   }
 }
 
-/* Small Mobile (480px and below) */
 @media (max-width: 480px) {
   .canvas-area {
-    padding: 12px;
-    gap: 16px;
+    padding: 56px 8px 12px;
+    gap: 14px;
   }
 
   .canvas-side {
     max-width: 100%;
   }
+
+  .canvas-label {
+    font-size: 10px;
+  }
 }
 
 /* ─── SIDEBAR TOGGLE ─────────────────────────── */
+
 .sidebar-toggle {
   display: none;
   position: fixed;
@@ -151,7 +157,8 @@
   }
 }
 
-/* Active canvas badge */
+/* ─── TOPBAR ─────────────────────────── */
+
 .canvas-active-badge {
   margin-left: 8px;
   padding: 2px 8px;
@@ -214,4 +221,22 @@
 
 .topbar-btn--primary:active {
   transform: translateY(0);
+}
+
+@media (max-width: 480px) {
+  .editor-topbar {
+    top: 10px;
+    right: 10px;
+    gap: 6px;
+  }
+
+  .topbar-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    gap: 5px;
+  }
+
+  .topbar-btn--ghost .btn-label {
+    display: none;
+  }
 }

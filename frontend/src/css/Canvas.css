@@ -29,7 +29,6 @@
   cursor: move;
 }
 
-
 @media (max-width: 1024px) {
   .canvas-wrapper {
     width: 480px;
@@ -39,14 +38,28 @@
 @media (max-width: 768px) {
   .canvas-wrapper {
     width: 100%;
-    max-width: 400px;
-  
+    max-width: 420px;
   }
 }
 
 @media (max-width: 480px) {
+  .canvas-container {
+    align-items: flex-start;
+    padding: 0;
+  }
+
   .canvas-wrapper {
+    width: 100vw;
     max-width: 100%;
-    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.3);
+    aspect-ratio: 580 / 330;
+    box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.3);
+    border-radius: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .canvas-wrapper {
+    width: 100vw;
+    max-width: 100%;
   }
 }
