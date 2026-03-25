@@ -171,11 +171,28 @@ const Canvas = forwardRef(({
   }
 
   function drawImage(ctx, el) {
-    if (!el.imgElement) return;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+  if (!el.imgElement) return;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  const isIcon = (el.id || '').startsWith('icon-') || el._sectionType === 'icon';
+  
+  if (isIcon && el.color && el.color !== '#000000') {
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = el.width  || el.imgElement.naturalWidth;
+    offscreen.height = el.height || el.imgElement.naturalHeight;
+    const offCtx = offscreen.getContext('2d');
+
+    offCtx.drawImage(el.imgElement, 0, 0, offscreen.width, offscreen.height);
+    offCtx.globalCompositeOperation = 'source-in';
+    offCtx.fillStyle = el.color;
+    offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+
+    ctx.drawImage(offscreen, el.x, el.y, el.width, el.height);
+  } else {
     ctx.drawImage(el.imgElement, el.x, el.y, el.width, el.height);
   }
+}
 
   function getBounds(el) {
     if (el.type === 'text') {

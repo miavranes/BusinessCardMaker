@@ -25,7 +25,6 @@ export default function FloatingEditor({
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // Don't close if a color picker is open — the picker popup is outside the DOM
       if (colorPickerActiveRef.current) return;
       if (panelRef.current && !panelRef.current.contains(e.target)) {
         onClose();
@@ -35,7 +34,6 @@ export default function FloatingEditor({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
-  // Track when a color input is focused/blurred so we don't close on picker interaction
   const colorInputProps = (value, onChange) => ({
     type: 'color',
     value,
@@ -285,8 +283,6 @@ export default function FloatingEditor({
               <input {...colorInputProps(el.color||'#000000', v => onUpdateElement(el.id, { color: v }))} />
             </div>
             <Divider />
-            <SizeRow el={el} />
-            <Divider />
             <OpacityRow value={el.opacity} onChange={v => onUpdateElement(el.id,{opacity:v})} />
           </>
         )}
@@ -298,8 +294,6 @@ export default function FloatingEditor({
               <input type="file" id={`img-upload-${el.id}`} hidden accept="image/*" onChange={handleImageElementUpload} />
               <label htmlFor={`img-upload-${el.id}`} className="fe-upload-btn">Choose File</label>
             </div>
-            <Divider />
-            <SizeRow el={el} />
             <Divider />
             <OpacityRow value={el.opacity} onChange={v => onUpdateElement(el.id, { opacity: v })} />
           </>
